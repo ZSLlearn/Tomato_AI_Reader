@@ -10,7 +10,6 @@ const AppState = {
     currentChat: null,
     theme: 'light',
     highlightColor: '#fef3c7',
-    answerLength: 'medium',
     viewMode: 'grid',
     zoom: 100,
     aiPanelCollapsed: false,
@@ -59,7 +58,6 @@ function cacheDOM() {
     DOM.pageLibrary = document.getElementById('pageLibrary');
     DOM.pageReader = document.getElementById('pageReader');
     DOM.docsContainer = document.getElementById('docsContainer');
-    DOM.bookshelfTabs = document.getElementById('bookshelfTabs');
     DOM.viewToggle = document.getElementById('viewToggle');
     DOM.searchInput = document.getElementById('searchInput');
     DOM.docCount = document.getElementById('docCount');
@@ -68,6 +66,7 @@ function cacheDOM() {
     DOM.btnSettings = document.getElementById('btnSettings');
     DOM.userAvatar = document.getElementById('userAvatar');
     DOM.sidebarMenu = document.getElementById('sidebarMenu');
+    DOM.shelvesList = document.getElementById('shelvesList');
 
     DOM.docTabsScroll = document.getElementById('docTabsScroll');
     DOM.docTabsContainer = document.getElementById('docTabsContainer');
@@ -86,7 +85,6 @@ function cacheDOM() {
     DOM.chatHistoryBtn = document.getElementById('chatHistoryBtn');
     DOM.newChatBtn = document.getElementById('newChatBtn');
     DOM.aiPanelCloseBtn = document.getElementById('aiPanelCloseBtn');
-    DOM.quickActions = document.getElementById('quickActions');
 
     DOM.importModal = document.getElementById('importModal');
     DOM.dropZone = document.getElementById('dropZone');
@@ -164,6 +162,8 @@ document.addEventListener('DOMContentLoaded', () => {
     initReaderEvents();
     initKeyboardShortcuts();
     initPdfViewer();
+    // 初始化AI配置切换器
+    renderActiveAiSelect();
 });
 
 function initPdfViewer() {
@@ -278,13 +278,27 @@ function getPdfPageInfo() {
 }
 
 // ==================== 书架/文档管理 ====================
+function updateImportButtonState(shelfId) {
+    const isRecent = shelfId === 'recent';
+    if (DOM.btnImport) {
+        DOM.btnImport.disabled = isRecent;
+        DOM.btnImport.style.opacity = isRecent ? '0.5' : '1';
+        DOM.btnImport.style.cursor = isRecent ? 'not-allowed' : 'pointer';
+        DOM.btnImport.title = isRecent ? '最近阅读不支持导入文档' : '导入文档';
+    }
+}
+
 function initLibrary() {
+    renderShelvesList();
     renderDocs();
     updateDocCount();
+    // 初始化导入按钮状态
+    const activeShelf = document.querySelector('.shelf-item.active')?.dataset.shelf || 'all';
+    updateImportButtonState(activeShelf);
 }
 
 function renderDocs(filter = '') {
-    const activeShelf = document.querySelector('.tab-item.active')?.dataset.shelf || 'all';
+    const activeShelf = document.querySelector('.shelf-item.active')?.dataset.shelf || 'all';
     let docs = AppState.documents;
 
     if (activeShelf !== 'all') {
@@ -374,7 +388,7 @@ function createDocCard(doc) {
 }
 
 function updateDocCount() {
-    const activeShelf = document.querySelector('.tab-item.active')?.dataset.shelf || 'all';
+    const activeShelf = document.querySelector('.shelf-item.active')?.dataset.shelf || 'all';
     let count = AppState.documents.length;
     if (activeShelf !== 'all') {
         count = AppState.documents.filter(d => d.shelf === activeShelf || (activeShelf === 'recent' && d.lastRead)).length;
@@ -384,16 +398,6 @@ function updateDocCount() {
 
 // ==================== 事件监听 ====================
 function initEventListeners() {
-    // 书架标签切换
-    DOM.bookshelfTabs.addEventListener('click', (e) => {
-        const tab = e.target.closest('.tab-item');
-        if (!tab) return;
-        document.querySelectorAll('.tab-item').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        renderDocs(DOM.searchInput.value);
-        updateDocCount();
-    });
-
     // 视图切换
     DOM.viewToggle.addEventListener('click', (e) => {
         const btn = e.target.closest('.view-btn');
@@ -436,12 +440,31 @@ function initEventListeners() {
         handleFileImport({ target: { files: e.dataTransfer.files } });
     });
 
-    // 侧边栏菜单
+    // 侧边栏书架点击
     DOM.sidebarMenu.addEventListener('click', (e) => {
-        const item = e.target.closest('.menu-item');
+        const item = e.target.closest('.shelf-item');
         if (!item) return;
-        document.querySelectorAll('.menu-item').forEach(i => i.classList.remove('active'));
+        document.querySelectorAll('.shelf-item').forEach(i => i.classList.remove('active'));
         item.classList.add('active');
+        renderDocs(DOM.searchInput.value);
+        updateDocCount();
+        
+        // 更新导入按钮状态：最近阅读不允许导入
+        const shelfId = item.dataset.shelf;
+        updateImportButtonState(shelfId);
+    });
+
+    // 侧边栏书架右键菜单
+    DOM.sidebarMenu.addEventListener('contextmenu', (e) => {
+        const item = e.target.closest('.shelf-item');
+        if (!item) return;
+        const shelfId = item.dataset.shelf;
+        // 系统书架不允许删除
+        if (shelfId === 'all' || shelfId === 'recent') return;
+        
+        e.preventDefault();
+        AppState.contextTarget = { type: 'shelf', id: shelfId };
+        showContextMenu(e, 'shelf');
     });
 
     // 点击空白关闭菜单
@@ -560,20 +583,6 @@ function initReaderEvents() {
     DOM.aiSendBtn.addEventListener('click', sendMessage);
     DOM.aiInput.addEventListener('keydown', (e) => {
         if (e.key === 'Enter') sendMessage();
-    });
-
-    // 快捷操作
-    DOM.quickActions.addEventListener('click', (e) => {
-        const btn = e.target.closest('.quick-action-btn');
-        if (!btn) return;
-        const action = btn.dataset.action;
-        const prompts = {
-            summarize: '请总结本文档的核心要点',
-            explain: '请解释当前页面的主要内容',
-            compare: '请对比分析文档中的关键数据'
-        };
-        DOM.aiInput.value = prompts[action] || '';
-        DOM.aiInput.focus();
     });
 
     // 历史对话下拉
@@ -1036,7 +1045,7 @@ function renderDocTabs() {
                 <span class="doc-tab-icon">${icon}</span>
                 <span class="doc-tab-name" title="${escapeHtml(doc.name)}">${escapeHtml(doc.name)}</span>
                 <button class="doc-tab-close" onclick="event.stopPropagation();closeDocTab('${docId}')" title="关闭">
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    <svg class="icon" width="12" height="12"><use href="web/icons/sprite.svg#x"/></svg>
                 </button>
             </div>
         `;
@@ -1544,13 +1553,6 @@ function setHighlightColor(color) {
     });
 }
 
-function setAnswerLength(length) {
-    AppState.answerLength = length;
-    document.querySelectorAll('.setting-option[data-length]').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.length === length);
-    });
-}
-
 // ==================== AI对话 ====================
 function initChat(docId) {
     const chats = AppState.chats[docId] || [];
@@ -1698,19 +1700,57 @@ function formatAIContent(content) {
         }
     }
 
+    // 列表栈：跟踪当前打开的列表层级
+    var listStack = [];
+
     function flushList() {
-        var last = result[result.length - 1];
-        if (last === '</ul>' || last === '</ol>') return;
-        var inUl = false;
-        var inOl = false;
-        for (var j = result.length - 1; j >= 0; j--) {
-            if (result[j] === '</ul>') { inUl = false; break; }
-            if (result[j] === '<ul>') { inUl = true; break; }
-            if (result[j] === '</ol>') { inOl = false; break; }
-            if (result[j] === '<ol>') { inOl = true; break; }
+        while (listStack.length > 0) {
+            listStack.pop();
+            result.push(listStack.length > 0 && listStack[listStack.length - 1].type === 'ul' ? '</ul>' : '</ol>');
         }
-        if (inUl) result.push('</ul>');
-        if (inOl) result.push('</ol>');
+    }
+
+    function closeListsToLevel(targetLevel) {
+        while (listStack.length > targetLevel) {
+            var closed = listStack.pop();
+            result.push('</' + closed.type + '>');
+        }
+    }
+
+    function openList(type, indent, level) {
+        listStack.push({ type: type, indent: indent, level: level });
+        result.push('<' + type + '>');
+    }
+
+    function processListItem(line) {
+        var match = line.match(/^(\s*)([-*+]|\d+\.)\s+(.*)/);
+        if (!match) return false;
+
+        var indent = match[1].length;
+        var marker = match[2];
+        var text = match[3];
+        var isOrdered = /^\d+\./.test(marker);
+        var type = isOrdered ? 'ol' : 'ul';
+        var level = Math.floor(indent / 2);
+
+        if (listStack.length === 0) {
+            openList(type, indent, level);
+        } else {
+            var top = listStack[listStack.length - 1];
+
+            if (indent > top.indent) {
+                openList(type, indent, level);
+            } else if (indent < top.indent) {
+                closeListsToLevel(0);
+                openList(type, indent, level);
+            } else if (type !== top.type) {
+                closeListsToLevel(listStack.length - 1);
+                openList(type, indent, level);
+            }
+        }
+
+        result.push('<li>' + text + '</li>');
+        return true;
     }
 
     while (i < lines.length) {
@@ -1790,42 +1830,21 @@ function formatAIContent(content) {
             continue;
         }
 
-        var ulMatch = line.match(/^(\s*)[-*+]\s+(.*)/);
-        if (ulMatch) {
-            var indent = ulMatch[1].length;
-            var liText = ulMatch[2];
-            var lastTag = result[result.length - 1];
-            if (lastTag !== '<ul>') {
-                flushParagraph();
-                result.push('<ul>');
-            }
-            result.push('<li>' + liText + '</li>');
-            i++;
-            continue;
-        }
-
-        var olMatch = line.match(/^(\s*)(\d+)\.\s+(.*)/);
-        if (olMatch) {
-            var olText = olMatch[3];
-            var lastTag2 = result[result.length - 1];
-            if (lastTag2 !== '<ol>') {
-                flushParagraph();
-                result.push('<ol>');
-            }
-            result.push('<li>' + olText + '</li>');
+        // 处理列表（支持嵌套）
+        if (processListItem(line)) {
             i++;
             continue;
         }
 
         if (line.trim() === '') {
-            flushList();
-            flushParagraph();
-            result.push('<br>');
             i++;
             continue;
         }
 
-        result.push(line);
+        // 遇到非列表内容，先关闭当前列表
+        flushList();
+        flushParagraph();
+        result.push('<p>' + line.trim() + '</p>');
         i++;
     }
 
@@ -1953,7 +1972,6 @@ async function sendMessage() {
 
         // 调用AI
         const result = await AIService.sendChatMessage(recentMessages, docContext, {
-            answerLength: AppState.answerLength,
             maxRounds: 20
         });
 
@@ -2790,22 +2808,8 @@ function initSettingsTabs() {
 }
 
 function loadAPIConfigToForm() {
-    const config = AIService.getAPIConfig();
-    if (!config) return;
-
-    if (DOM.apiKeyInput && config.apiKey) {
-        DOM.apiKeyInput.value = config.apiKey;
-        DOM.apiKeyInput.type = 'password';
-    }
-    if (DOM.apiProvider && config.provider) {
-        DOM.apiProvider.value = config.provider;
-    }
-    if (DOM.apiEndpoint && config.endpoint) {
-        DOM.apiEndpoint.value = config.endpoint;
-    }
-    if (DOM.apiModel && config.model) {
-        DOM.apiModel.value = config.model;
-    }
+    renderAIConfigList();
+    renderActiveAiSelect();
 }
 
 function toggleApiKeyVisibility() {
@@ -2813,70 +2817,328 @@ function toggleApiKeyVisibility() {
     const isPassword = DOM.apiKeyInput.type === 'password';
     DOM.apiKeyInput.type = isPassword ? 'text' : 'password';
     DOM.apiKeyToggle.innerHTML = isPassword
-        ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>'
-        : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+        ? '<svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#eye-off"/></svg>'
+        : '<svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#eye"/></svg>';
 }
 
-async function testApiConnection() {
-    const apiKey = DOM.apiKeyInput?.value?.trim();
-    if (!apiKey) {
-        DOM.apiTestStatus.textContent = '请先输入API Key';
-        DOM.apiTestStatus.className = 'api-test-status error';
+// ==================== AI配置管理（多配置） ====================
+
+function renderAIConfigList() {
+    const container = document.getElementById('aiConfigList');
+    const emptyState = document.getElementById('aiConfigEmpty');
+    const configs = AIService.getAllConfigs();
+
+    if (configs.length === 0) {
+        container.innerHTML = '';
+        emptyState.classList.remove('hidden');
         return;
     }
 
-    DOM.apiTestBtnText.textContent = '⏳ 测试中...';
-    DOM.apiTestStatus.textContent = '';
-    DOM.apiTestStatus.className = 'api-test-status';
+    emptyState.classList.add('hidden');
+    container.innerHTML = configs.map(config => {
+        const isActive = config.id === AIService.getActiveConfigId();
+        const modelInfo = AI_MODELS[config.model] || { name: config.model, desc: '' };
+        const maskedKey = config.apiKey ? '••••' + config.apiKey.slice(-4) : '未设置';
+
+        return `
+            <div class="ai-config-item ${isActive ? 'active' : ''}" data-config-id="${config.id}" onclick="selectAIConfig('${config.id}')">
+                <div class="ai-config-item-header">
+                    <div class="ai-config-name">
+                        ${escapeHtml(config.name)}
+                        ${isActive ? '<span class="ai-config-active-badge">使用中</span>' : ''}
+                    </div>
+                    <div class="ai-config-actions" onclick="event.stopPropagation()">
+                        <button class="ai-config-action-btn" onclick="editAIConfig('${config.id}')" title="编辑">
+                            <svg class="icon" width="14" height="14"><use href="web/icons/sprite.svg#edit-2"/></svg>
+                        </button>
+                        <button class="ai-config-action-btn danger" onclick="deleteAIConfig('${config.id}')" title="删除">
+                            <svg class="icon" width="14" height="14"><use href="web/icons/sprite.svg#trash-2"/></svg>
+                        </button>
+                    </div>
+                </div>
+                <div class="ai-config-info">
+                    <span class="ai-config-model">${modelInfo.name}</span>
+                    <span>${maskedKey}</span>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function showAddConfigForm() {
+    document.getElementById('configFormContainer').classList.remove('hidden');
+    document.querySelector('.ai-config-list-container > .ai-config-header').parentElement.querySelector('.ai-config-list')?.classList.add('hidden');
+    document.querySelector('.ai-config-list-container > .ai-config-header').classList.add('hidden');
+    document.getElementById('aiConfigEmpty')?.classList.add('hidden');
+    
+    // 清空表单
+    document.getElementById('configNameInput').value = '';
+    document.getElementById('apiKeyInput').value = '';
+    document.getElementById('apiEndpoint').value = DEFAULT_ENDPOINTS.openai;
+    document.getElementById('apiModel').value = 'deepseek-v4-flash';
+    document.getElementById('editingConfigId').value = '';
+    document.getElementById('configFormTitle').textContent = '添加新配置';
+    document.getElementById('saveConfigBtn').classList.remove('hidden');
+}
+
+function hideConfigForm() {
+    document.getElementById('configFormContainer').classList.add('hidden');
+    document.querySelector('.ai-config-list-container > .ai-config-header')?.classList.remove('hidden');
+    renderAIConfigList();
+}
+
+function editAIConfig(configId) {
+    const configs = AIService.getAllConfigs();
+    const config = configs.find(c => c.id === configId);
+    if (!config) return;
+
+    showAddConfigForm();
+    document.getElementById('configNameInput').value = config.name || '';
+    document.getElementById('apiKeyInput').value = config.apiKey || '';
+    document.getElementById('apiEndpoint').value = config.endpoint || DEFAULT_ENDPOINTS.openai;
+    document.getElementById('apiModel').value = config.model || 'deepseek-v4-flash';
+    document.getElementById('editingConfigId').value = configId;
+    document.getElementById('configFormTitle').textContent = '编辑配置：' + (config.name || '未命名');
+}
+
+function selectAIConfig(configId) {
+    AIService.setActiveConfig(configId);
+    renderAIConfigList();
+    renderActiveAiSelect();
+    closeModelDropdown();
+    showToast('已切换到：' + (AIService.getAPIConfig().name || '未命名'), 'success');
+}
+
+async function deleteAIConfig(configId) {
+    if (!confirm('确定要删除此配置吗？')) return;
+
+    AIService.deleteConfig(configId);
+    renderAIConfigList();
+    renderActiveAiSelect();
+    showToast('配置已删除', 'success');
+}
+
+async function testCurrentConfig() {
+    const apiKey = document.getElementById('apiKeyInput')?.value?.trim();
+    if (!apiKey) {
+        document.getElementById('apiTestStatus').textContent = '请先输入API Key';
+        document.getElementById('apiTestStatus').className = 'api-test-status error';
+        return;
+    }
+
+    document.getElementById('apiTestStatus').textContent = '⏳ 测试中...';
+    document.getElementById('apiTestStatus').className = 'api-test-status';
 
     const config = {
-        provider: DOM.apiProvider?.value || 'deepseek',
+        provider: document.getElementById('apiProvider')?.value || 'deepseek',
         apiKey: apiKey,
-        endpoint: DOM.apiEndpoint?.value || 'https://api.deepseek.com/v1/chat/completions',
-        model: DOM.apiModel?.value || 'deepseek-chat'
+        endpoint: document.getElementById('apiEndpoint')?.value || DEFAULT_ENDPOINTS.openai,
+        model: document.getElementById('apiModel')?.value || 'deepseek-v4-flash'
     };
 
     const result = await AIService.testConnection(config);
 
     if (result.success) {
-        DOM.apiTestBtnText.textContent = '🟢 连接正常';
-        DOM.apiTestStatus.textContent = '测试通过，模型可用';
-        DOM.apiTestStatus.className = 'api-test-status success';
+        document.getElementById('apiTestStatus').textContent = '✓ 连接正常';
+        document.getElementById('apiTestStatus').className = 'api-test-status success';
     } else {
-        DOM.apiTestBtnText.textContent = '🔴 连接失败';
-        DOM.apiTestStatus.textContent = result.message;
-        DOM.apiTestStatus.className = 'api-test-status error';
+        document.getElementById('apiTestStatus').textContent = '✗ ' + result.message;
+        document.getElementById('apiTestStatus').className = 'api-test-status error';
     }
 }
 
-function saveAPIConfigHandler() {
-    const apiKey = DOM.apiKeyInput?.value?.trim();
+function saveCurrentConfig() {
+    const name = document.getElementById('configNameInput')?.value?.trim();
+    const apiKey = document.getElementById('apiKeyInput')?.value?.trim();
+    
     if (!apiKey) {
         showToast('请输入API Key', 'error');
         return;
     }
 
-    const config = {
-        provider: DOM.apiProvider?.value || 'deepseek',
+    const editingId = document.getElementById('editingConfigId')?.value;
+    const configData = {
+        name: name || '未命名配置',
+        provider: document.getElementById('apiProvider')?.value || 'deepseek',
         apiKey: apiKey,
-        endpoint: DOM.apiEndpoint?.value || 'https://api.deepseek.com/v1/chat/completions',
-        model: DOM.apiModel?.value || 'deepseek-chat',
-        updatedAt: new Date().toISOString()
+        endpoint: document.getElementById('apiEndpoint')?.value || DEFAULT_ENDPOINTS.openai,
+        model: document.getElementById('apiModel')?.value || 'deepseek-v4-flash'
     };
 
-    AIService.saveAPIConfig(config);
-    AppState._apiConfigured = true;
+    if (editingId) {
+        AIService.updateConfig(editingId, configData);
+        showToast('配置已更新', 'success');
+    } else {
+        AIService.addConfig(configData);
+        showToast('配置已保存', 'success');
+    }
 
-    closeModal('settingsModal');
-    showToast('API配置已保存', 'success');
-
-    // 刷新对话区域
-    renderChatMessages();
+    hideConfigForm();
+    renderActiveAiSelect();
 }
 
-function onProviderChange() {
-    const provider = DOM.apiProvider?.value;
+// ==================== 对话界面AI切换 ====================
+
+function renderActiveAiSelect() {
+    const btn = document.getElementById('modelSwitcherBtn');
+    const nameSpan = document.getElementById('currentModelName');
+    if (!btn || !nameSpan) return;
+
+    const config = AIService.getAPIConfig();
+    
+    if (!config || !config.apiKey) {
+        nameSpan.textContent = '未配置';
+        return;
+    }
+
+    const modelInfo = AI_MODELS[config.model] || { name: config.model };
+    nameSpan.textContent = (config.name || '未命名') + ' - ' + modelInfo.name;
 }
+
+function renderModelDropdown() {
+    const dropdown = document.getElementById('modelDropdown');
+    if (!dropdown) return;
+
+    const configs = AIService.getAllConfigs();
+    const activeId = AIService.getActiveConfigId();
+
+    if (configs.length === 0) {
+        dropdown.innerHTML = `
+            <div class="model-dropdown-item" style="cursor: default; justify-content: center; color: var(--text-tertiary);">
+                暂无配置，请点击「管理」添加
+            </div>
+        `;
+        return;
+    }
+
+    let html = '';
+    configs.forEach(config => {
+        const isActive = config.id === activeId;
+        const modelInfo = AI_MODELS[config.model] || { name: config.model };
+        
+        html += `
+            <div class="model-dropdown-item ${isActive ? 'active' : ''}" onclick="selectAIConfig('${config.id}')">
+                <div class="model-dropdown-item-left">
+                    <svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#cpu"/></svg>
+                    <div>
+                        <div class="model-dropdown-item-name">${escapeHtml(config.name || '未命名')}</div>
+                        <div class="model-dropdown-item-model">${modelInfo.name}</div>
+                    </div>
+                </div>
+                ${isActive ? '<span class="model-dropdown-item-active-icon">使用中</span>' : ''}
+            </div>
+        `;
+    });
+
+    html += `
+        <div class="model-dropdown-footer">
+            <span style="font-size: 11px; color: var(--text-tertiary);">共 ${configs.length} 个配置</span>
+        </div>
+    `;
+
+    dropdown.innerHTML = html;
+}
+
+let modelDropdownOpen = false;
+
+function toggleModelDropdown() {
+    const switcher = document.getElementById('aiModelSwitcher');
+    const btn = document.getElementById('modelSwitcherBtn');
+    
+    if (!switcher || !btn) return;
+
+    if (modelDropdownOpen) {
+        closeModelDropdown();
+        return;
+    }
+
+    renderModelDropdown();
+    
+    // 创建或获取dropdown并移动到body
+    let dropdown = document.getElementById('modelDropdown');
+    if (dropdown) {
+        // 计算位置
+        const rect = btn.getBoundingClientRect();
+        
+        // 将dropdown移动到body以避免overflow裁剪
+        if (dropdown.parentNode !== document.body) {
+            document.body.appendChild(dropdown);
+        }
+        
+        // 设置样式和位置
+        dropdown.style.position = 'fixed';
+        dropdown.style.bottom = (window.innerHeight - rect.top + 8) + 'px';
+        dropdown.style.left = rect.left + 'px';
+        dropdown.style.minWidth = Math.max(260, rect.width) + 'px';
+        
+        dropdown.classList.remove('hidden');
+        btn.classList.add('active');
+        modelDropdownOpen = true;
+    }
+}
+
+function closeModelDropdown() {
+    const dropdown = document.getElementById('modelDropdown');
+    const btn = document.getElementById('modelSwitcherBtn');
+    const switcher = document.getElementById('aiModelSwitcher');
+    
+    if (dropdown) {
+        dropdown.classList.add('hidden');
+        // 将dropdown移回原位
+        if (switcher && dropdown.parentNode === document.body) {
+            switcher.appendChild(dropdown);
+        }
+        dropdown.style.position = '';
+        dropdown.style.bottom = '';
+        dropdown.style.left = '';
+        dropdown.style.minWidth = '';
+    }
+    if (btn) btn.classList.remove('active');
+    modelDropdownOpen = false;
+}
+
+// 点击外部关闭下拉
+document.addEventListener('click', (e) => {
+    const switcher = document.getElementById('aiModelSwitcher');
+    if (switcher && !switcher.contains(e.target)) {
+        closeModelDropdown();
+    }
+});
+
+function onActiveAiChange(configId) {
+    if (!configId) return;
+    AIService.setActiveConfig(configId);
+    renderAIConfigList();
+    renderActiveAiSelect();
+    closeModelDropdown();
+    showToast('已切换到：' + (AIService.getAPIConfig().name || '未命名'), 'success');
+}
+
+function openAISettings() {
+    closeModelDropdown();
+    openModal('settingsModal');
+    
+    // 切换到API标签页
+    const tabs = document.querySelectorAll('.settings-tab');
+    tabs.forEach(t => t.classList.remove('active'));
+    const apiTab = document.querySelector('.settings-tab[data-tab="api"]');
+    if (apiTab) apiTab.classList.add('active');
+
+    DOM.settingsPanelGeneral?.classList.add('hidden');
+    DOM.settingsPanelApi?.classList.remove('hidden');
+    loadAPIConfigToForm();
+}
+
+// 兼容旧函数
+async function testApiConnection() {
+    await testCurrentConfig();
+}
+
+function saveAPIConfigHandler() {
+    saveCurrentConfig();
+}
+
+function onProviderChange() {}
 
 // ==================== 选中文字处理 ====================
 function handleTextSelectionOld(e) {
@@ -2934,9 +3196,32 @@ function hideContextMenus() {
 }
 
 function handleContextAction(action) {
-    const doc = AppState.contextTarget;
-    if (!doc) return;
+    const target = AppState.contextTarget;
+    if (!target) return;
 
+    // 处理书架操作
+    if (target.type === 'shelf') {
+        switch (action) {
+            case 'rename':
+                const shelf = AppState.shelves.find(s => s.id === target.id);
+                if (shelf) {
+                    DOM.renameInput.value = shelf.name;
+                    openModal('renameModal');
+                    AppState.contextTarget = { type: 'shelf', id: target.id };
+                }
+                break;
+            case 'delete':
+                showConfirm('删除书架', '删除后，该书架中的文档将保留在「全部文档」中，确定删除？', () => {
+                    deleteShelf(target.id);
+                });
+                break;
+        }
+        hideContextMenus();
+        return;
+    }
+
+    // 处理文档操作
+    const doc = target;
     switch (action) {
         case 'open':
             openDocument(doc.id);
@@ -2983,9 +3268,12 @@ function moveToShelf(shelfId) {
 function confirmRename() {
     const newName = DOM.renameInput.value.trim();
     if (!newName) return;
-    const doc = AppState.contextTarget;
-    if (doc) {
-        doc.name = newName;
+    const target = AppState.contextTarget;
+    
+    if (target.type === 'shelf') {
+        renameShelf(target.id, newName);
+    } else if (target) {
+        target.name = newName;
         renderDocs();
         showToast('重命名成功', 'success');
     }
@@ -2993,6 +3281,29 @@ function confirmRename() {
 }
 
 // ==================== 书架管理 ====================
+function renderShelvesList() {
+    if (!DOM.shelvesList) return;
+    
+    DOM.shelvesList.innerHTML = '';
+    
+    const customShelves = AppState.shelves.filter(s => !s.system);
+    customShelves.forEach(shelf => {
+        const item = document.createElement('div');
+        item.className = 'shelf-item';
+        item.dataset.shelf = shelf.id;
+        item.innerHTML = `
+            <span class="shelf-icon"><svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#folder"/></svg></span>
+            <span>${shelf.name}</span>
+        `;
+        DOM.shelvesList.appendChild(item);
+    });
+    
+    // 如果没有自定义书架，显示提示
+    if (customShelves.length === 0) {
+        DOM.shelvesList.innerHTML = '<div class="shelves-empty">暂无书架，点击上方按钮新建</div>';
+    }
+}
+
 function createShelf() {
     const name = DOM.newShelfName.value.trim();
     if (!name) {
@@ -3003,16 +3314,44 @@ function createShelf() {
     const id = 'shelf-' + Date.now();
     AppState.shelves.push({ id, name, system: false });
 
-    // 添加新标签
-    const tab = document.createElement('div');
-    tab.className = 'tab-item';
-    tab.dataset.shelf = id;
-    tab.textContent = name;
-    DOM.bookshelfTabs.appendChild(tab);
+    // 添加到侧边栏
+    renderShelvesList();
 
     DOM.newShelfName.value = '';
     closeModal('newShelfModal');
     showToast('书架创建成功', 'success');
+}
+
+function renameShelf(shelfId, newName) {
+    const shelf = AppState.shelves.find(s => s.id === shelfId);
+    if (shelf) {
+        shelf.name = newName;
+        renderShelvesList();
+        showToast('书架重命名成功', 'success');
+    }
+}
+
+function deleteShelf(shelfId) {
+    // 将该书架的文档移到"全部文档"
+    AppState.documents.forEach(doc => {
+        if (doc.shelf === shelfId) {
+            doc.shelf = 'all';
+        }
+    });
+    
+    // 删除书架
+    AppState.shelves = AppState.shelves.filter(s => s.id !== shelfId);
+    
+    // 如果当前选中的是被删除的书架，切换到"全部文档"
+    const activeShelf = document.querySelector('.shelf-item.active')?.dataset.shelf;
+    if (activeShelf === shelfId) {
+        document.querySelector('.shelf-item[data-shelf="all"]')?.classList.add('active');
+        renderDocs(DOM.searchInput.value);
+        updateDocCount();
+    }
+    
+    renderShelvesList();
+    showToast('书架已删除，文档已保留在全部文档中', 'success');
 }
 
 // ==================== 文件导入 ====================
@@ -3075,11 +3414,18 @@ function handleFileImport(e) {
         try {
             const content = await parseDocument(file, ext);
             const docId = 'doc-' + Date.now() + '-' + index;
+            
+            // 获取当前选中的书架
+            // - 自建书架：文档归入该书架（同时显示在全部文档）
+            // - 全部文档/最近阅读：文档归入全部文档
+            const currentShelf = document.querySelector('.shelf-item.active')?.dataset.shelf || 'all';
+            const targetShelf = (currentShelf === 'all' || currentShelf === 'recent') ? 'all' : currentShelf;
+            
             const newDoc = {
                 id: docId,
                 name: file.name,
                 type: ext,
-                shelf: 'all',
+                shelf: targetShelf,
                 date: new Date().toISOString().split('T')[0],
                 size: formatFileSize(file.size),
                 pages: content.pages?.length || 1,

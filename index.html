@@ -21,19 +21,19 @@
             <div class="nav-left">
                 <div class="logo"><img class="logo-img" src="logo.png" alt="Tomato Reader" draggable="false">Tomato Reader</div>
                 <button class="btn-primary" id="btnImport">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                    <svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#plus"/></svg>
                     导入
                 </button>
             </div>
             <div class="nav-center">
                 <div class="search-wrapper">
-                    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9aa0a6" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <svg class="icon search-icon" width="16" height="16"><use href="web/icons/sprite.svg#search"/></svg>
                     <input type="text" class="search-input" id="searchInput" placeholder="搜索文档、批注或标签...">
                 </div>
             </div>
             <div class="nav-right">
                 <button class="icon-btn" id="btnSettings" title="设置">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v10m11-7h-6m-6 0H1m20.07-4.93-4.24 4.24M7.17 16.83l-4.24 4.24m0-14.14 4.24 4.24m9.66 9.66 4.24 4.24"/></svg>
+                    <svg class="icon" width="20" height="20"><use href="web/icons/sprite.svg#settings"/></svg>
                 </button>
                 <div class="user-avatar" id="userAvatar">U</div>
             </div>
@@ -44,7 +44,7 @@
             <!-- 左侧边栏 -->
             <aside class="sidebar-left" id="sidebarLeft">
                 <div class="sidebar-header">
-                    <div class="sidebar-icon">📁</div>
+                    <div class="sidebar-icon"><svg class="icon" width="24" height="24"><use href="web/icons/sprite.svg#folder"/></svg></div>
                     <div>
                         <div class="sidebar-title">资源管理器</div>
                         <div class="sidebar-subtitle">文档库</div>
@@ -52,36 +52,40 @@
                 </div>
 
                 <button class="btn-new-folder" id="btnNewFolder">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+                    <svg class="icon" width="14" height="14"><use href="web/icons/sprite.svg#folder-plus"/></svg>
                     新建文件夹
                 </button>
 
+                <!-- 书架列表 -->
                 <nav class="sidebar-menu" id="sidebarMenu">
-                    <div class="menu-item active" data-page="library">
-                        <span class="menu-icon">📚</span>
-                        <span>资源库</span>
+                    <!-- 系统书架 -->
+                    <div class="shelf-section">
+                        <div class="shelf-section-title">系统书架</div>
+                        <div class="shelf-item active" data-shelf="all">
+                            <span class="shelf-icon"><svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#book-open"/></svg></span>
+                            <span>全部文档</span>
+                        </div>
+                        <div class="shelf-item" data-shelf="recent">
+                            <span class="shelf-icon"><svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#clock"/></svg></span>
+                            <span>最近阅读</span>
+                        </div>
                     </div>
-                    <div class="menu-item" data-page="toc">
-                        <span class="menu-icon">📑</span>
-                        <span>目录</span>
-                    </div>
-                    <div class="menu-item" data-page="bookmark">
-                        <span class="menu-icon">🔖</span>
-                        <span>书签</span>
-                    </div>
-                    <div class="menu-item" data-page="annotation">
-                        <span class="menu-icon">✏️</span>
-                        <span>标注</span>
+                    <!-- 自定义书架 -->
+                    <div class="shelf-section">
+                        <div class="shelf-section-title">我的书架</div>
+                        <div class="shelves-list" id="shelvesList">
+                            <!-- 动态生成的自定义书架 -->
+                        </div>
                     </div>
                 </nav>
 
                 <div class="sidebar-footer">
                     <div class="footer-menu-item">
-                        <span>❓</span>
+                        <span><svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#help-circle"/></svg></span>
                         <span>帮助</span>
                     </div>
                     <div class="footer-menu-item">
-                        <span>🗑️</span>
+                        <span><svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#trash-2"/></svg></span>
                         <span>回收站</span>
                     </div>
                 </div>
@@ -89,12 +93,6 @@
 
             <!-- 内容区域 -->
             <main class="content-area">
-                <!-- 书架标签 -->
-                <div class="bookshelf-tabs" id="bookshelfTabs">
-                    <div class="tab-item active" data-shelf="all">全部文档</div>
-                    <div class="tab-item" data-shelf="recent">最近阅读</div>
-                </div>
-
                 <!-- 工具栏 -->
                 <div class="toolbar-row">
                     <div class="toolbar-left" id="toolbarLeft">
@@ -102,10 +100,10 @@
                     </div>
                     <div class="view-toggle" id="viewToggle">
                         <button class="view-btn active" data-view="grid" title="网格视图">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                            <svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#layout-grid"/></svg>
                         </button>
                         <button class="view-btn" data-view="list" title="列表视图">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                            <svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#list"/></svg>
                         </button>
                     </div>
                 </div>
@@ -132,13 +130,13 @@
             </div>
             <div class="reader-topbar-right">
                 <button class="icon-btn" title="返回资源库" onclick="goToLibrary()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                    <svg class="icon" width="18" height="18"><use href="web/icons/sprite.svg#home"/></svg>
                 </button>
                 <button class="icon-btn" title="新建对话" onclick="newChat()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                    <svg class="icon" width="18" height="18"><use href="web/icons/sprite.svg#plus"/></svg>
                 </button>
                 <button class="icon-btn" title="设置" onclick="openSettings()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v10m11-7h-6m-6 0H1"/></svg>
+                    <svg class="icon" width="18" height="18"><use href="web/icons/sprite.svg#settings"/></svg>
                 </button>
                 <div class="user-avatar">U</div>
             </div>
@@ -150,31 +148,31 @@
                 <div class="reader-toolbar" id="readerToolbar">
                     <div class="toolbar-group">
                         <button class="tool-btn" id="zoomOutBtn" title="缩小">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                            <svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#zoom-out"/></svg>
                         </button>
                         <span class="zoom-display" id="zoomDisplay">100%</span>
                         <button class="tool-btn" id="zoomInBtn" title="放大">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                            <svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#zoom-in"/></svg>
                         </button>
                         <div class="toolbar-divider"></div>
                         <button class="tool-btn" id="fitWidthBtn" title="适合宽度">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                            <svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#maximize-2"/></svg>
                         </button>
                         <button class="tool-btn" id="singlePageBtn" title="单页">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                            <svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#layout"/></svg>
                         </button>
                         <button class="tool-btn" id="doublePageBtn" title="双页">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
+                            <svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#columns-2"/></svg>
                         </button>
                         <div class="toolbar-divider"></div>
                         <button class="tool-btn" id="themeToggleBtn" title="夜间模式">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                            <svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#moon"/></svg>
                         </button>
                         <button class="tool-btn" id="downloadBtn" title="下载">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                            <svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#download"/></svg>
                         </button>
                         <button class="tool-btn" id="printBtn" title="打印">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                            <svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#printer"/></svg>
                         </button>
                     </div>
                 </div>
@@ -201,13 +199,13 @@
                     </div>
                     <div class="ai-panel-actions">
                         <button class="ai-panel-action-btn" id="chatHistoryBtn" title="历史对话">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                            <svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#activity"/></svg>
                         </button>
                         <button class="ai-panel-action-btn" id="newChatBtn" title="新建对话" onclick="newChat()">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                            <svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#plus"/></svg>
                         </button>
                         <button class="ai-panel-action-btn" id="aiPanelCloseBtn" title="关闭">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                            <svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#x"/></svg>
                         </button>
                     </div>
                 </div>
@@ -235,10 +233,10 @@
                         </span>
                         <div class="quote-list-actions">
                             <button class="quote-list-action-btn" id="quoteClearBtn" title="清空所有引用">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                <svg class="icon" width="12" height="12"><use href="web/icons/sprite.svg#trash-2"/></svg>
                             </button>
                             <button class="quote-list-action-btn" id="quoteToggleBtn" title="折叠/展开">
-                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="quoteToggleIcon"><polyline points="18 15 12 9 6 15"/></svg>
+                                <svg class="icon" width="12" height="12" id="quoteToggleIcon"><use href="web/icons/sprite.svg#chevron-down"/></svg>
                             </button>
                         </div>
                     </div>
@@ -253,23 +251,24 @@
                     <div class="ai-input-wrapper">
                         <input type="text" class="ai-input" id="aiInput" placeholder="输入您的问题...">
                         <button class="ai-send-btn" id="aiSendBtn">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                            <svg class="icon" width="18" height="18"><use href="web/icons/sprite.svg#send"/></svg>
                         </button>
                     </div>
-                    <div class="ai-input-actions">
-                        <button class="input-action-btn" id="quoteBtn">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                            引用
-                        </button>
-                        <button class="input-action-btn" id="voiceBtn">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
-                            语音
-                        </button>
-                    </div>
-                    <div class="quick-actions" id="quickActions">
-                        <button class="quick-action-btn" data-action="summarize">总结要点</button>
-                        <button class="quick-action-btn" data-action="explain">解释内容</button>
-                        <button class="quick-action-btn" data-action="compare">对比分析</button>
+                    <!-- AI配置切换器 -->
+                    <div class="ai-model-switcher-row">
+                        <div class="ai-model-switcher" id="aiModelSwitcher">
+                            <button class="model-switcher-btn" id="modelSwitcherBtn" onclick="toggleModelDropdown()">
+                                <svg class="icon" width="14" height="14"><use href="web/icons/sprite.svg#cpu"/></svg>
+                                <span id="currentModelName">选择AI模型</span>
+                                <svg class="icon switcher-arrow" width="12" height="12"><use href="web/icons/sprite.svg#chevron-down"/></svg>
+                            </button>
+                            
+                            <div class="model-dropdown hidden" id="modelDropdown"></div>
+                            
+                            <button class="model-settings-btn" onclick="openAISettings()">
+                                <svg class="icon" width="12" height="12"><use href="web/icons/sprite.svg#settings"/></svg> 管理
+                            </button>
+                        </div>
                     </div>
                 </div>
             </aside>
@@ -286,7 +285,7 @@
             </div>
             <div class="modal-body">
                 <div class="drop-zone" id="dropZone">
-                    <div class="drop-zone-icon">📁</div>
+                        <div class="drop-zone-icon"><svg class="icon" width="48" height="48"><use href="web/icons/sprite.svg#folder"/></svg></div>
                     <p class="drop-zone-title">拖拽文件到此处导入</p>
                     <p class="drop-zone-desc">或点击选择文件</p>
                     <input type="file" class="file-input" id="fileInput" multiple accept=".pdf,.docx,.pptx,.epub,.txt">
@@ -389,15 +388,15 @@
                         <label class="setting-label">主题</label>
                         <div class="setting-options">
                             <button class="setting-option active" data-theme="light" onclick="setTheme('light')">
-                                <span class="option-icon">☀️</span>
+                                <span class="option-icon"><svg class="icon" width="18" height="18"><use href="web/icons/sprite.svg#sun"/></svg></span>
                                 <span>亮色</span>
                             </button>
                             <button class="setting-option" data-theme="dark" onclick="setTheme('dark')">
-                                <span class="option-icon">🌙</span>
+                                <span class="option-icon"><svg class="icon" width="18" height="18"><use href="web/icons/sprite.svg#moon"/></svg></span>
                                 <span>暗色</span>
                             </button>
                             <button class="setting-option" data-theme="auto" onclick="setTheme('auto')">
-                                <span class="option-icon">💻</span>
+                                <span class="option-icon"><svg class="icon" width="18" height="18"><use href="web/icons/sprite.svg#monitor"/></svg></span>
                                 <span>跟随系统</span>
                             </button>
                         </div>
@@ -410,74 +409,101 @@
                             <button class="color-option" data-color="#dbeafe" style="background:#dbeafe;" onclick="setHighlightColor('#dbeafe')"></button>
                         </div>
                     </div>
-                    <div class="setting-group">
-                        <label class="setting-label">AI回答长度</label>
-                        <div class="setting-options">
-                            <button class="setting-option" data-length="short" onclick="setAnswerLength('short')">
-                                <span>短（≤150字）</span>
-                            </button>
-                            <button class="setting-option active" data-length="medium" onclick="setAnswerLength('medium')">
-                                <span>中（≤400字）</span>
-                            </button>
-                            <button class="setting-option" data-length="long" onclick="setAnswerLength('long')">
-                                <span>长（≤800字）</span>
-                            </button>
-                        </div>
-                    </div>
+
                 </div>
             </div>
             <!-- AI服务设置面板 -->
             <div class="settings-panel hidden" id="settingsPanelApi">
                 <div class="modal-body">
-                    <div class="api-config-guide" id="apiConfigGuide">
-                        <div class="api-guide-icon">🔑</div>
-                        <p class="api-guide-title">配置AI服务以获得智能阅读体验</p>
-                        <p class="api-guide-desc">请配置DeepSeek API Key，用于AI解释、翻译和对话功能</p>
-                    </div>
-                    <div class="setting-group">
-                        <label class="setting-label">服务提供商</label>
-                        <div class="setting-select-wrapper">
-                            <select class="setting-select" id="apiProvider" onchange="onProviderChange()">
-                                <option value="deepseek" selected>DeepSeek</option>
-                            </select>
-                        </div>
-                        <p class="setting-hint">更多服务商支持敬请期待</p>
-                    </div>
-                    <div class="setting-group">
-                        <label class="setting-label">API Key</label>
-                        <div class="api-key-input-wrapper">
-                            <input type="password" class="modal-input api-key-input" id="apiKeyInput" placeholder="sk-xxxxxxxxxxxxxxxxxxxx">
-                            <button class="api-key-toggle" id="apiKeyToggle" title="显示/隐藏" onclick="toggleApiKeyVisibility()">
-                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <!-- AI配置列表 -->
+                    <div class="ai-config-list-container">
+                        <div class="ai-config-header">
+                            <h3>AI 配置管理</h3>
+                            <button class="btn-primary btn-sm" onclick="showAddConfigForm()">
+                                <svg class="icon" width="14" height="14"><use href="web/icons/sprite.svg#plus"/></svg> 添加配置
                             </button>
                         </div>
-                        <a class="api-help-link" href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">
-                            🔗 如何获取 DeepSeek API Key？
-                        </a>
-                    </div>
-                    <div class="setting-group">
-                        <label class="setting-label">API 地址（高级）</label>
-                        <input type="text" class="modal-input" id="apiEndpoint" placeholder="https://api.deepseek.com/v1/chat/completions" value="https://api.deepseek.com/v1/chat/completions">
-                    </div>
-                    <div class="setting-group">
-                        <label class="setting-label">默认模型</label>
-                        <div class="setting-select-wrapper">
-                            <select class="setting-select" id="apiModel">
-                                <option value="deepseek-chat" selected>deepseek-chat（通用对话，64K上下文）</option>
-                                <option value="deepseek-reasoner">deepseek-reasoner（深度推理）</option>
-                            </select>
+
+                        <!-- 配置列表 -->
+                        <div id="aiConfigList" class="ai-config-list">
+                            <!-- 动态渲染配置项 -->
+                        </div>
+
+                        <!-- 空状态提示 -->
+                        <div id="aiConfigEmpty" class="ai-config-empty hidden">
+                            <div class="empty-icon">
+                                <svg class="icon" width="48" height="48" style="opacity: 0.3;"><use href="web/icons/sprite.svg#key"/></svg>
+                            </div>
+                            <p>暂无AI配置</p>
+                            <p class="text-muted">添加DeepSeek API配置以启用AI功能</p>
                         </div>
                     </div>
-                    <div class="api-test-section">
-                        <button class="btn-outline" id="apiTestBtn" onclick="testApiConnection()">
-                            <span id="apiTestBtnText">🟢 测试连接</span>
-                        </button>
-                        <span class="api-test-status" id="apiTestStatus"></span>
+
+                    <!-- 添加/编辑配置表单（默认隐藏） -->
+                    <div id="configFormContainer" class="config-form-container hidden">
+                        <div class="config-form-header">
+                            <button class="btn-text" onclick="hideConfigForm()">
+                                <svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#arrow-left"/></svg> 返回列表
+                            </button>
+                            <span id="configFormTitle">添加新配置</span>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="setting-label">配置名称</label>
+                            <input type="text" class="modal-input" id="configNameInput" placeholder="例如：我的DeepSeek账号">
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="setting-label">服务提供商</label>
+                            <div class="setting-select-wrapper">
+                                <select class="setting-select" id="apiProvider">
+                                    <option value="deepseek" selected>DeepSeek</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="setting-label">API Key <span class="required">*</span></label>
+                            <div class="api-key-input-wrapper">
+                                <input type="password" class="modal-input api-key-input" id="apiKeyInput" placeholder="sk-xxxxxxxxxxxxxxxxxxxx">
+                                <button class="api-key-toggle" id="apiKeyToggle" title="显示/隐藏" onclick="toggleApiKeyVisibility()">
+                                    <svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#eye-off"/></svg>
+                                </button>
+                            </div>
+                            <a class="api-help-link" href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">
+                                <svg class="icon" width="14" height="14"><use href="web/icons/sprite.svg#link"/></svg> 如何获取 DeepSeek API Key？
+                            </a>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="setting-label">API 地址</label>
+                            <input type="text" class="modal-input" id="apiEndpoint" value="https://api.deepseek.com/v1/chat/completions">
+                            <p class="setting-hint">OpenAI兼容格式，默认为DeepSeek官方地址</p>
+                        </div>
+
+                        <div class="setting-group">
+                            <label class="setting-label">模型选择</label>
+                            <div class="setting-select-wrapper">
+                                <select class="setting-select" id="apiModel">
+                                    <option value="deepseek-v4-flash" selected>DeepSeek V4 Flash（推荐）- 快速响应</option>
+                                    <option value="deepseek-v4-pro">DeepSeek V4 Pro - 深度思考</option>
+                                    <option value="deepseek-chat" class="deprecated-option">DeepSeek Chat（即将弃用）</option>
+                                    <option value="deepseek-reasoner" class="deprecated-option">DeepSeek Reasoner（即将弃用）</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="config-form-actions">
+                            <button class="btn-outline" onclick="testCurrentConfig()">测试连接</button>
+                            <span class="api-test-status" id="apiTestStatus"></span>
+                        </div>
+
+                        <input type="hidden" id="editingConfigId" value="">
                     </div>
                 </div>
                 <div class="modal-footer">
-                    <button class="btn-outline" onclick="closeModal('settingsModal')">取消</button>
-                    <button class="btn-primary" onclick="saveAPIConfigHandler()">保存配置</button>
+                    <button class="btn-outline" onclick="closeModal('settingsModal')">关闭</button>
+                    <button class="btn-primary hidden" id="saveConfigBtn" onclick="saveCurrentConfig()">保存配置</button>
                 </div>
             </div>
         </div>
@@ -486,20 +512,20 @@
     <!-- 右键菜单 -->
     <div class="context-menu hidden" id="contextMenu">
         <div class="context-menu-item" onclick="handleContextAction('open')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            <svg class="icon" width="14" height="14"><use href="web/icons/sprite.svg#file-text"/></svg>
             打开
         </div>
         <div class="context-menu-item" onclick="handleContextAction('rename')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            <svg class="icon" width="14" height="14"><use href="web/icons/sprite.svg#edit"/></svg>
             重命名
         </div>
         <div class="context-menu-item" onclick="handleContextAction('move')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            <svg class="icon" width="14" height="14"><use href="web/icons/sprite.svg#folder"/></svg>
             移动到
         </div>
         <div class="context-menu-divider"></div>
         <div class="context-menu-item context-menu-danger" onclick="handleContextAction('delete')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            <svg class="icon" width="14" height="14"><use href="web/icons/sprite.svg#trash-2"/></svg>
             删除
         </div>
     </div>
@@ -510,15 +536,15 @@
         <img class="fw-logo" id="fwLogo" src="logo.png" alt="AI Reader" draggable="false">
         <div class="floating-window-buttons">
             <button class="fw-btn fw-btn-quote" id="fwQuoteBtn" title="引用到对话">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <svg class="icon" width="14" height="14"><use href="web/icons/sprite.svg#message-square"/></svg>
                 <span>引用</span>
             </button>
             <button class="fw-btn fw-btn-explain" id="fwExplainBtn" title="AI解释">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <svg class="icon" width="14" height="14"><use href="web/icons/sprite.svg#lightbulb"/></svg>
                 <span>解释</span>
             </button>
             <button class="fw-btn fw-btn-translate" id="fwTranslateBtn" title="AI翻译">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+                <svg class="icon" width="14" height="14"><use href="web/icons/sprite.svg#globe"/></svg>
                 <span>翻译</span>
             </button>
         </div>
@@ -527,7 +553,7 @@
     <!-- 悬浮窗展开面板 - 解释 -->
     <div class="fw-expand-panel hidden" id="fwExplainPanel">
         <div class="fw-expand-header">
-            <span class="fw-expand-title">💡 AI解释</span>
+            <span class="fw-expand-title"><svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#lightbulb"/></svg> AI解释</span>
             <button class="fw-expand-close" id="fwExplainClose">&times;</button>
         </div>
         <div class="fw-expand-body" id="fwExplainBody">
@@ -540,7 +566,7 @@
         </div>
         <div class="fw-expand-footer">
             <button class="fw-ref-link-btn" id="fwExplainRefBtn">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <svg class="icon" width="12" height="12"><use href="web/icons/sprite.svg#link"/></svg>
                 引用此解释到对话
             </button>
         </div>
@@ -549,7 +575,7 @@
     <!-- 悬浮窗展开面板 - 翻译 -->
     <div class="fw-expand-panel hidden" id="fwTranslatePanel">
         <div class="fw-expand-header">
-            <span class="fw-expand-title">🔍 AI翻译</span>
+            <span class="fw-expand-title"><svg class="icon" width="16" height="16"><use href="web/icons/sprite.svg#globe"/></svg> AI翻译</span>
             <button class="fw-expand-close" id="fwTranslateClose">&times;</button>
         </div>
         <div class="fw-expand-body" id="fwTranslateBody">
@@ -562,7 +588,7 @@
         </div>
         <div class="fw-expand-footer">
             <button class="fw-ref-link-btn" id="fwTranslateRefBtn">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                <svg class="icon" width="12" height="12"><use href="web/icons/sprite.svg#link"/></svg>
                 引用此翻译到对话
             </button>
         </div>
@@ -571,15 +597,15 @@
     <!-- 选中文字右键菜单 -->
     <div class="context-menu hidden" id="selectionMenu">
         <div class="context-menu-item" onclick="handleSelectionAction('copy')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <svg class="icon" width="14" height="14"><use href="web/icons/sprite.svg#copy"/></svg>
             复制
         </div>
         <div class="context-menu-item" onclick="handleSelectionAction('ask')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <svg class="icon" width="14" height="14"><use href="web/icons/sprite.svg#message-square"/></svg>
             AI提问
         </div>
         <div class="context-menu-item" onclick="handleSelectionAction('annotate')">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            <svg class="icon" width="14" height="14"><use href="web/icons/sprite.svg#pen-tool"/></svg>
             标注
         </div>
     </div>

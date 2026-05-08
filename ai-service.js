@@ -1,12 +1,27 @@
 /**
  * AI智能阅读器 - AI服务层
  * 处理API Key管理、提示词工程、DeepSeek API通信
+ * 支持多AI配置管理
  */
+
+// ==================== 模型定义 ====================
+const AI_MODELS = {
+    'deepseek-v4-flash': { name: 'DeepSeek V4 Flash', desc: '快速响应，适合日常对话', context: 64000, recommended: true },
+    'deepseek-v4-pro': { name: 'DeepSeek V4 Pro', desc: '深度思考，适合复杂分析', context: 128000 },
+    'deepseek-chat': { name: 'DeepSeek Chat', desc: '通用对话（即将弃用）', context: 64000, deprecated: true },
+    'deepseek-reasoner': { name: 'DeepSeek Reasoner', desc: '深度推理（即将弃用）', context: 64000, deprecated: true }
+};
+
+const DEFAULT_ENDPOINTS = {
+    openai: 'https://api.deepseek.com/v1/chat/completions',
+    anthropic: 'https://api.deepseek.com/anthropic/v1/messages'
+};
 
 // ==================== API Key安全存储 ====================
 const AIService = {
-    _apiKeyMemory: null,
     _abortControllers: {},
+    _configs: [],
+    _activeConfigId: null,
 
     // 设备指纹（用于XOR混淆）
     _deviceFingerprint: null,
@@ -35,52 +50,143 @@ const AIService = {
         return result;
     },
 
-    // 安全存储API配置
-    saveAPIConfig(config) {
+    // 安全存储所有配置
+    saveAllConfigs(configs) {
         const key = this.getDeviceFingerprint();
-        const plain = JSON.stringify(config);
+        const plain = JSON.stringify({ configs, activeId: this._activeConfigId });
         const obfuscated = this._xorString(plain, key);
         const encoded = btoa(obfuscated);
-        localStorage.setItem('aireader_api_config', encoded);
-        this._apiKeyMemory = config.apiKey || null;
+        localStorage.setItem('aireader_api_configs', encoded);
     },
 
-    // 安全读取API配置
-    loadAPIConfig() {
-        const encoded = localStorage.getItem('aireader_api_config');
-        if (!encoded) return null;
+    // 安全读取所有配置
+    loadAllConfigs() {
+        const encoded = localStorage.getItem('aireader_api_configs');
+        if (!encoded) {
+            this._configs = [];
+            this._activeConfigId = null;
+            return { configs: [], activeId: null };
+        }
         try {
             const key = this.getDeviceFingerprint();
             const obfuscated = atob(encoded);
             const plain = this._xorString(obfuscated, key);
-            const config = JSON.parse(plain);
-            this._apiKeyMemory = config.apiKey || null;
-            return config;
+            const data = JSON.parse(plain);
+            this._configs = data.configs || [];
+            this._activeConfigId = data.activeId || null;
+            return data;
         } catch (e) {
-            localStorage.removeItem('aireader_api_config');
-            return null;
+            localStorage.removeItem('aireader_api_configs');
+            this._configs = [];
+            this._activeConfigId = null;
+            return { configs: [], activeId: null };
         }
     },
 
-    // 获取API Key（仅内存）
-    getApiKey() {
-        if (this._apiKeyMemory) return this._apiKeyMemory;
-        const config = this.loadAPIConfig();
-        return config?.apiKey || null;
+    // 获取所有配置
+    getAllConfigs() {
+        if (this._configs.length === 0) {
+            this.loadAllConfigs();
+        }
+        return this._configs;
     },
 
-    // 获取完整API配置
+    // 获取当前活跃配置ID
+    getActiveConfigId() {
+        if (!this._activeConfigId && this._configs.length === 0) {
+            this.loadAllConfigs();
+        }
+        return this._activeConfigId;
+    },
+
+    // 设置活跃配置
+    setActiveConfig(configId) {
+        this._activeConfigId = configId;
+        this.saveAllConfigs(this._configs);
+    },
+
+    // 添加新配置
+    addConfig(config) {
+        const newConfig = {
+            id: 'config-' + Date.now(),
+            name: config.name || '未命名配置',
+            provider: config.provider || 'deepseek',
+            apiKey: config.apiKey,
+            endpoint: config.endpoint || DEFAULT_ENDPOINTS.openai,
+            model: config.model || 'deepseek-v4-flash',
+            createdAt: new Date().toISOString(),
+            isDefault: this._configs.length === 0
+        };
+
+        if (newConfig.isDefault) {
+            this._activeConfigId = newConfig.id;
+        }
+
+        this._configs.push(newConfig);
+        this.saveAllConfigs(this._configs);
+        return newConfig;
+    },
+
+    // 更新配置
+    updateConfig(configId, updates) {
+        const idx = this._configs.findIndex(c => c.id === configId);
+        if (idx === -1) return null;
+
+        this._configs[idx] = { ...this._configs[idx], ...updates, id: configId };
+        this.saveAllConfigs(this._configs);
+        return this._configs[idx];
+    },
+
+    // 删除配置
+    deleteConfig(configId) {
+        const idx = this._configs.findIndex(c => c.id === configId);
+        if (idx === -1) return false;
+
+        this._configs.splice(idx, 1);
+
+        // 如果删除的是当前活跃配置，切换到第一个或null
+        if (this._activeConfigId === configId) {
+            this._activeConfigId = this._configs.length > 0 ? this._configs[0].id : null;
+        }
+
+        this.saveAllConfigs(this._configs);
+        return true;
+    },
+
+    // 获取当前活跃配置（兼容旧接口）
     getAPIConfig() {
-        const config = this.loadAPIConfig();
+        if (this._configs.length === 0) {
+            this.loadAllConfigs();
+        }
+
+        let config;
+        if (this._activeConfigId) {
+            config = this._configs.find(c => c.id === this._activeConfigId);
+        }
+
+        if (!config && this._configs.length > 0) {
+            config = this._configs[0];
+            this._activeConfigId = config.id;
+        }
+
         if (!config) {
             return {
+                id: null,
+                name: '',
                 provider: 'deepseek',
-                endpoint: 'https://api.deepseek.com/v1/chat/completions',
-                model: 'deepseek-chat',
+                endpoint: DEFAULT_ENDPOINTS.openai,
+                model: 'deepseek-v4-flash',
                 apiKey: ''
             };
         }
+
         return config;
+    },
+
+    // 获取API Key
+    getApiKey() {
+        const config = this.getAPIConfig();
+        return config?.apiKey || null;
     },
 
     // 检查是否已配置
@@ -88,10 +194,11 @@ const AIService = {
         return !!this.getApiKey();
     },
 
-    // 清除API配置
-    clearAPIConfig() {
-        localStorage.removeItem('aireader_api_config');
-        this._apiKeyMemory = null;
+    // 清除所有配置
+    clearAllConfigs() {
+        localStorage.removeItem('aireader_api_configs');
+        this._configs = [];
+        this._activeConfigId = null;
     },
 
     // ==================== API通信 ====================
@@ -119,7 +226,7 @@ const AIService = {
         const systemPrompt = this._buildSystemPrompt(documentContext, options);
         const fullMessages = this._buildMessageList(systemPrompt, messages, options);
 
-        const { maxTokens, maxRounds } = this._calculateTokenBudget(
+        const { maxTokens } = this._calculateTokenBudget(
             fullMessages,
             config.model,
             options
@@ -181,20 +288,19 @@ const AIService = {
         const requestId = Date.now().toString();
         this._abortControllers[requestId] = controller;
 
-        // 合并外部signal
         if (signal) {
             signal.addEventListener('abort', () => controller.abort());
         }
 
         try {
-            const response = await fetch(config.endpoint || 'https://api.deepseek.com/v1/chat/completions', {
+            const response = await fetch(config.endpoint || DEFAULT_ENDPOINTS.openai, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${config.apiKey}`
                 },
                 body: JSON.stringify({
-                    model: config.model || 'deepseek-chat',
+                    model: config.model || 'deepseek-v4-flash',
                     messages: messages,
                     max_tokens: maxTokens,
                     temperature: 0.7,
@@ -272,7 +378,6 @@ const AIService = {
     _buildSystemPrompt(docContext, options) {
         const parts = [];
 
-        // 1. 角色设定
         parts.push(`你是一个专业的AI阅读助手，帮助用户理解和分析文档内容。
 你的回答应该：
 - 准确：严格基于文档内容，不编造信息
@@ -280,7 +385,6 @@ const AIService = {
 - 结构化：使用列表、分点等方式组织回答
 - 可追溯：每个观点都标注在文档中的来源位置`);
 
-        // 2. 文档上下文
         if (docContext) {
             parts.push('');
             parts.push('【当前文档信息】');
@@ -307,18 +411,14 @@ const AIService = {
             }
         }
 
-        // 3. 回答规则
-        const lengthLimit = options.answerLength || 'medium';
-        const lengthMap = { short: 150, medium: 400, long: 800 };
         parts.push('');
         parts.push('【回答规则】');
         parts.push(`1. 每个观点后标注来源，格式："（见第X章，第Y页）"`);
         parts.push(`2. 如果文档中找不到相关信息，明确说"文档中未提及此内容"`);
         parts.push(`3. 如需补充通用知识，先声明"以下为通用知识补充："`);
-        parts.push(`4. 回答长度控制在${lengthMap[lengthLimit]}字以内`);
-        parts.push(`5. 使用Markdown格式化回答`);
-        parts.push(`6. 如果用户要求总结，请给出结构化的总结`);
-        parts.push(`7. 如果用户要求对比，请使用表格形式展示`);
+        parts.push(`4. 使用Markdown格式化回答`);
+        parts.push(`5. 如果用户要求总结，请给出结构化的总结`);
+        parts.push(`6. 如果用户要求对比，请使用表格形式展示`);
 
         return parts.join('\n');
     },
@@ -343,8 +443,6 @@ const AIService = {
     _truncateDocumentText(fullText, options) {
         const MAX_CHARS = 40000;
         if (fullText.length <= MAX_CHARS) return fullText;
-
-        // 保留前MAX_CHARS字符
         return fullText.substring(0, MAX_CHARS);
     },
 
@@ -352,7 +450,6 @@ const AIService = {
     _buildMessageList(systemPrompt, messages, options) {
         const result = [{ role: 'system', content: systemPrompt }];
 
-        // 处理消息中的引用内容
         messages.forEach((msg, idx) => {
             if (msg.role === 'user' && msg.references && msg.references.length > 0) {
                 let content = '';
@@ -388,53 +485,47 @@ const AIService = {
 
     // ==================== Token预算管理 ====================
 
-    // 估算文本的token数量（粗略：中文1字≈1token，英文1词≈1.3token）
     estimateTokens(text) {
         if (!text) return 0;
         let count = 0;
         for (const char of text) {
             if (/[\u4e00-\u9fff]/.test(char)) {
-                count += 1; // 中文字符
+                count += 1;
             } else if (/[a-zA-Z]/.test(char)) {
-                count += 0.3; // 英文字母
+                count += 0.3;
             } else {
-                count += 0.5; // 其他字符
+                count += 0.5;
             }
         }
         return Math.ceil(count);
     },
 
-    // 计算token预算分配
     _calculateTokenBudget(messages, model, options = {}) {
-        const CONTEXT_LIMIT = model === 'deepseek-reasoner' ? 64000 : 64000;
+        const modelInfo = AI_MODELS[model];
+        const CONTEXT_LIMIT = modelInfo?.context || 64000;
 
         let totalEstimated = 0;
         messages.forEach(msg => {
             totalEstimated += this.estimateTokens(msg.content);
         });
 
-        const maxTokens = Math.max(256, Math.min(4096, CONTEXT_LIMIT - totalEstimated - 500));
-        const maxRounds = Math.min(options.maxRounds || 20, 20); // 最多20轮对话
+        const maxTokens = Math.max(256, Math.min(8192, CONTEXT_LIMIT - totalEstimated - 500));
 
-        return { maxTokens, maxRounds };
+        return { maxTokens };
     },
 
     // ==================== 反死循环机制 ====================
 
-    // 检查消息是否可能导致循环
     checkForLoop(messages) {
         if (messages.length < 4) return false;
 
-        // 检查最近2轮对话是否完全一致
         const recent = messages.slice(-4);
         const texts = recent.map(m => m.content?.trim() || '');
 
-        // 完全相同的user消息
         if (texts[0] === texts[2] && texts[1] === texts[3]) {
             return true;
         }
 
-        // 检查最近6条AI消息是否有高度重复
         const aiMessages = messages.filter(m => m.role === 'ai').slice(-6);
         if (aiMessages.length >= 4) {
             const contents = aiMessages.map(m => m.content?.substring(0, 100) || '');
@@ -447,7 +538,6 @@ const AIService = {
         return false;
     },
 
-    // 检查user消息是否过于重复
     checkRepeatedUserInput(messages) {
         const userMessages = messages.filter(m => m.role === 'user');
         if (userMessages.length < 3) return false;
@@ -455,9 +545,10 @@ const AIService = {
         const lastThree = userMessages.slice(-3);
         const texts = lastThree.map(m => m.content?.trim()?.substring(0, 50));
         const unique = new Set(texts);
-        return unique.size === 1; // 最后3条完全相同
+        return unique.size === 1;
     }
 };
 
-// 全局暴露
 window.AIService = AIService;
+window.AI_MODELS = AI_MODELS;
+window.DEFAULT_ENDPOINTS = DEFAULT_ENDPOINTS;
