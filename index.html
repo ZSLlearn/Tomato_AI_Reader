@@ -1,0 +1,596 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI智能阅读器</title>
+    <link rel="stylesheet" href="style.css">
+    <script type="module">
+        import * as pdfjsLib from './build/pdf.mjs';
+        window.pdfjsLib = pdfjsLib;
+        pdfjsLib.GlobalWorkerOptions.workerSrc = './build/pdf.worker.mjs';
+    </script>
+    <script src="build/mammoth.browser.min.js"></script>
+    <script src="build/jszip.min.js"></script>
+</head>
+<body>
+    <!-- ==================== 页面1：文档管理/书架首页 ==================== -->
+    <div class="page" id="pageLibrary">
+        <!-- 顶部导航 -->
+        <header class="top-nav">
+            <div class="nav-left">
+                <div class="logo"><img class="logo-img" src="logo.png" alt="Tomato Reader" draggable="false">Tomato Reader</div>
+                <button class="btn-primary" id="btnImport">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>
+                    导入
+                </button>
+            </div>
+            <div class="nav-center">
+                <div class="search-wrapper">
+                    <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#9aa0a6" stroke-width="2"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                    <input type="text" class="search-input" id="searchInput" placeholder="搜索文档、批注或标签...">
+                </div>
+            </div>
+            <div class="nav-right">
+                <button class="icon-btn" id="btnSettings" title="设置">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v10m11-7h-6m-6 0H1m20.07-4.93-4.24 4.24M7.17 16.83l-4.24 4.24m0-14.14 4.24 4.24m9.66 9.66 4.24 4.24"/></svg>
+                </button>
+                <div class="user-avatar" id="userAvatar">U</div>
+            </div>
+        </header>
+
+        <!-- 主容器 -->
+        <div class="main-layout">
+            <!-- 左侧边栏 -->
+            <aside class="sidebar-left" id="sidebarLeft">
+                <div class="sidebar-header">
+                    <div class="sidebar-icon">📁</div>
+                    <div>
+                        <div class="sidebar-title">资源管理器</div>
+                        <div class="sidebar-subtitle">文档库</div>
+                    </div>
+                </div>
+
+                <button class="btn-new-folder" id="btnNewFolder">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/><line x1="12" y1="11" x2="12" y2="17"/><line x1="9" y1="14" x2="15" y2="14"/></svg>
+                    新建文件夹
+                </button>
+
+                <nav class="sidebar-menu" id="sidebarMenu">
+                    <div class="menu-item active" data-page="library">
+                        <span class="menu-icon">📚</span>
+                        <span>资源库</span>
+                    </div>
+                    <div class="menu-item" data-page="toc">
+                        <span class="menu-icon">📑</span>
+                        <span>目录</span>
+                    </div>
+                    <div class="menu-item" data-page="bookmark">
+                        <span class="menu-icon">🔖</span>
+                        <span>书签</span>
+                    </div>
+                    <div class="menu-item" data-page="annotation">
+                        <span class="menu-icon">✏️</span>
+                        <span>标注</span>
+                    </div>
+                </nav>
+
+                <div class="sidebar-footer">
+                    <div class="footer-menu-item">
+                        <span>❓</span>
+                        <span>帮助</span>
+                    </div>
+                    <div class="footer-menu-item">
+                        <span>🗑️</span>
+                        <span>回收站</span>
+                    </div>
+                </div>
+            </aside>
+
+            <!-- 内容区域 -->
+            <main class="content-area">
+                <!-- 书架标签 -->
+                <div class="bookshelf-tabs" id="bookshelfTabs">
+                    <div class="tab-item active" data-shelf="all">全部文档</div>
+                    <div class="tab-item" data-shelf="recent">最近阅读</div>
+                </div>
+
+                <!-- 工具栏 -->
+                <div class="toolbar-row">
+                    <div class="toolbar-left" id="toolbarLeft">
+                        <span class="doc-count" id="docCount">5 个文档</span>
+                    </div>
+                    <div class="view-toggle" id="viewToggle">
+                        <button class="view-btn active" data-view="grid" title="网格视图">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>
+                        </button>
+                        <button class="view-btn" data-view="list" title="列表视图">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 文档列表 -->
+                <div class="docs-container grid-view" id="docsContainer">
+                    <!-- 文档卡片由JS动态生成 -->
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- ==================== 页面2：阅读界面 ==================== -->
+    <div class="page hidden" id="pageReader">
+        <!-- 阅读器顶部栏 -->
+        <header class="reader-topbar">
+            <div class="reader-topbar-left">
+                <div class="logo" onclick="goToLibrary()" title="返回资源库"><img class="logo-img" src="logo.png" alt="Tomato Reader" draggable="false">Tomato Reader</div>
+                <div class="doc-tabs-container" id="docTabsContainer">
+                    <div class="doc-tabs-scroll" id="docTabsScroll">
+                        <!-- 文档标签页由JS动态生成 -->
+                    </div>
+                </div>
+            </div>
+            <div class="reader-topbar-right">
+                <button class="icon-btn" title="返回资源库" onclick="goToLibrary()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                </button>
+                <button class="icon-btn" title="新建对话" onclick="newChat()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                </button>
+                <button class="icon-btn" title="设置" onclick="openSettings()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6m0 6v10m11-7h-6m-6 0H1"/></svg>
+                </button>
+                <div class="user-avatar">U</div>
+            </div>
+        </header>
+
+        <div class="reader-layout">
+            <!-- 中间阅读区 -->
+            <section class="reader-main" id="readerMain">
+                <div class="reader-toolbar" id="readerToolbar">
+                    <div class="toolbar-group">
+                        <button class="tool-btn" id="zoomOutBtn" title="缩小">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                        </button>
+                        <span class="zoom-display" id="zoomDisplay">100%</span>
+                        <button class="tool-btn" id="zoomInBtn" title="放大">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/><line x1="11" y1="8" x2="11" y2="14"/><line x1="8" y1="11" x2="14" y2="11"/></svg>
+                        </button>
+                        <div class="toolbar-divider"></div>
+                        <button class="tool-btn" id="fitWidthBtn" title="适合宽度">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+                        </button>
+                        <button class="tool-btn" id="singlePageBtn" title="单页">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
+                        </button>
+                        <button class="tool-btn" id="doublePageBtn" title="双页">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="18" rx="1"/></svg>
+                        </button>
+                        <div class="toolbar-divider"></div>
+                        <button class="tool-btn" id="themeToggleBtn" title="夜间模式">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                        </button>
+                        <button class="tool-btn" id="downloadBtn" title="下载">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                        </button>
+                        <button class="tool-btn" id="printBtn" title="打印">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="document-viewport" id="documentViewport">
+                    <!-- PDF Viewer iframe -->
+                    <iframe id="pdfViewerFrame" class="pdf-viewer-frame hidden"></iframe>
+                    <!-- 其他格式文档渲染区域 -->
+                    <div class="document-pages" id="documentPages">
+                        <!-- 文档页面由JS动态生成 -->
+                    </div>
+                </div>
+            </section>
+
+            <!-- 面板拖拽调节手柄 -->
+            <div class="panel-resize-handle" id="panelResizeHandle"></div>
+
+            <!-- 右侧AI对话面板 -->
+            <aside class="ai-panel" id="aiPanel" style="width: var(--ai-panel-width);">
+                <div class="ai-panel-header">
+                    <div class="ai-panel-title">
+                        <img class="ai-avatar-img" src="logo.png" alt="AI" draggable="false">
+                        <span id="aiPanelTitle">AI 助手</span>
+                    </div>
+                    <div class="ai-panel-actions">
+                        <button class="ai-panel-action-btn" id="chatHistoryBtn" title="历史对话">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                        </button>
+                        <button class="ai-panel-action-btn" id="newChatBtn" title="新建对话" onclick="newChat()">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+                        </button>
+                        <button class="ai-panel-action-btn" id="aiPanelCloseBtn" title="关闭">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- 对话选择下拉 -->
+                <div class="chat-dropdown hidden" id="chatDropdown">
+                    <div class="chat-dropdown-header">
+                        <span>历史对话</span>
+                    </div>
+                    <div class="chat-list" id="chatList">
+                        <!-- 由JS动态生成 -->
+                    </div>
+                </div>
+
+                <div class="ai-chat-area" id="aiChatArea">
+                    <!-- 对话消息由JS动态生成 -->
+                </div>
+
+                <!-- 引用列表区域 -->
+                <div class="quote-list-section" id="quoteListSection">
+                    <div class="quote-list-header" id="quoteListHeader">
+                        <span class="quote-list-title">
+                            引用列表
+                            <span class="quote-count-badge" id="quoteCountBadge">0</span>
+                        </span>
+                        <div class="quote-list-actions">
+                            <button class="quote-list-action-btn" id="quoteClearBtn" title="清空所有引用">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            </button>
+                            <button class="quote-list-action-btn" id="quoteToggleBtn" title="折叠/展开">
+                                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" id="quoteToggleIcon"><polyline points="18 15 12 9 6 15"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="quote-list-body" id="quoteListBody">
+                        <div class="quote-list-empty" id="quoteListEmpty">
+                            选中文字后点击「引用」按钮添加到此列表
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ai-input-area">
+                    <div class="ai-input-wrapper">
+                        <input type="text" class="ai-input" id="aiInput" placeholder="输入您的问题...">
+                        <button class="ai-send-btn" id="aiSendBtn">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                        </button>
+                    </div>
+                    <div class="ai-input-actions">
+                        <button class="input-action-btn" id="quoteBtn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                            引用
+                        </button>
+                        <button class="input-action-btn" id="voiceBtn">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3Z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                            语音
+                        </button>
+                    </div>
+                    <div class="quick-actions" id="quickActions">
+                        <button class="quick-action-btn" data-action="summarize">总结要点</button>
+                        <button class="quick-action-btn" data-action="explain">解释内容</button>
+                        <button class="quick-action-btn" data-action="compare">对比分析</button>
+                    </div>
+                </div>
+            </aside>
+        </div>
+    </div>
+
+    <!-- ==================== 弹窗层 ==================== -->
+    <!-- 导入弹窗 -->
+    <div class="modal-overlay hidden" id="importModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>导入文档</h3>
+                <button class="modal-close" onclick="closeModal('importModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="drop-zone" id="dropZone">
+                    <div class="drop-zone-icon">📁</div>
+                    <p class="drop-zone-title">拖拽文件到此处导入</p>
+                    <p class="drop-zone-desc">或点击选择文件</p>
+                    <input type="file" class="file-input" id="fileInput" multiple accept=".pdf,.docx,.pptx,.epub,.txt">
+                    <button class="btn-primary" onclick="document.getElementById('fileInput').click()">选择文件</button>
+                </div>
+                <div class="import-progress hidden" id="importProgress">
+                    <div class="progress-bar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+                    <p class="progress-text" id="progressText">导入中：0/0 个文件</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 新建书架弹窗 -->
+    <div class="modal-overlay hidden" id="newShelfModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h3>新建书架</h3>
+                <button class="modal-close" onclick="closeModal('newShelfModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="modal-input" id="newShelfName" placeholder="输入书架名称">
+            </div>
+            <div class="modal-footer">
+                <button class="btn-outline" onclick="closeModal('newShelfModal')">取消</button>
+                <button class="btn-primary" onclick="createShelf()">创建</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 重命名弹窗 -->
+    <div class="modal-overlay hidden" id="renameModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h3>重命名</h3>
+                <button class="modal-close" onclick="closeModal('renameModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="text" class="modal-input" id="renameInput" placeholder="新名称">
+            </div>
+            <div class="modal-footer">
+                <button class="btn-outline" onclick="closeModal('renameModal')">取消</button>
+                <button class="btn-primary" onclick="confirmRename()">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 移动到弹窗 -->
+    <div class="modal-overlay hidden" id="moveModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h3>移动到</h3>
+                <button class="modal-close" onclick="closeModal('moveModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="shelf-list" id="shelfList">
+                    <!-- 由JS动态生成 -->
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-outline" onclick="closeModal('moveModal')">取消</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 确认弹窗 -->
+    <div class="modal-overlay hidden" id="confirmModal">
+        <div class="modal modal-sm">
+            <div class="modal-header">
+                <h3 id="confirmTitle">确认</h3>
+            </div>
+            <div class="modal-body">
+                <p id="confirmMessage">确定要执行此操作吗？</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn-outline" onclick="closeModal('confirmModal')" id="confirmCancel">取消</button>
+                <button class="btn-danger" onclick="confirmAction()" id="confirmOk">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 设置弹窗 -->
+    <div class="modal-overlay hidden" id="settingsModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>设置</h3>
+                <button class="modal-close" onclick="closeModal('settingsModal')">&times;</button>
+            </div>
+            <!-- 设置标签栏 -->
+            <div class="settings-tabs">
+                <button class="settings-tab active" data-tab="general">通用</button>
+                <button class="settings-tab" data-tab="api">AI 服务</button>
+            </div>
+            <!-- 通用设置面板 -->
+            <div class="settings-panel" id="settingsPanelGeneral">
+                <div class="modal-body">
+                    <div class="setting-group">
+                        <label class="setting-label">主题</label>
+                        <div class="setting-options">
+                            <button class="setting-option active" data-theme="light" onclick="setTheme('light')">
+                                <span class="option-icon">☀️</span>
+                                <span>亮色</span>
+                            </button>
+                            <button class="setting-option" data-theme="dark" onclick="setTheme('dark')">
+                                <span class="option-icon">🌙</span>
+                                <span>暗色</span>
+                            </button>
+                            <button class="setting-option" data-theme="auto" onclick="setTheme('auto')">
+                                <span class="option-icon">💻</span>
+                                <span>跟随系统</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <label class="setting-label">选中高亮颜色</label>
+                        <div class="color-options">
+                            <button class="color-option active" data-color="#fef3c7" style="background:#fef3c7;" onclick="setHighlightColor('#fef3c7')"></button>
+                            <button class="color-option" data-color="#d1fae5" style="background:#d1fae5;" onclick="setHighlightColor('#d1fae5')"></button>
+                            <button class="color-option" data-color="#dbeafe" style="background:#dbeafe;" onclick="setHighlightColor('#dbeafe')"></button>
+                        </div>
+                    </div>
+                    <div class="setting-group">
+                        <label class="setting-label">AI回答长度</label>
+                        <div class="setting-options">
+                            <button class="setting-option" data-length="short" onclick="setAnswerLength('short')">
+                                <span>短（≤150字）</span>
+                            </button>
+                            <button class="setting-option active" data-length="medium" onclick="setAnswerLength('medium')">
+                                <span>中（≤400字）</span>
+                            </button>
+                            <button class="setting-option" data-length="long" onclick="setAnswerLength('long')">
+                                <span>长（≤800字）</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- AI服务设置面板 -->
+            <div class="settings-panel hidden" id="settingsPanelApi">
+                <div class="modal-body">
+                    <div class="api-config-guide" id="apiConfigGuide">
+                        <div class="api-guide-icon">🔑</div>
+                        <p class="api-guide-title">配置AI服务以获得智能阅读体验</p>
+                        <p class="api-guide-desc">请配置DeepSeek API Key，用于AI解释、翻译和对话功能</p>
+                    </div>
+                    <div class="setting-group">
+                        <label class="setting-label">服务提供商</label>
+                        <div class="setting-select-wrapper">
+                            <select class="setting-select" id="apiProvider" onchange="onProviderChange()">
+                                <option value="deepseek" selected>DeepSeek</option>
+                            </select>
+                        </div>
+                        <p class="setting-hint">更多服务商支持敬请期待</p>
+                    </div>
+                    <div class="setting-group">
+                        <label class="setting-label">API Key</label>
+                        <div class="api-key-input-wrapper">
+                            <input type="password" class="modal-input api-key-input" id="apiKeyInput" placeholder="sk-xxxxxxxxxxxxxxxxxxxx">
+                            <button class="api-key-toggle" id="apiKeyToggle" title="显示/隐藏" onclick="toggleApiKeyVisibility()">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                        </div>
+                        <a class="api-help-link" href="https://platform.deepseek.com/api_keys" target="_blank" rel="noopener">
+                            🔗 如何获取 DeepSeek API Key？
+                        </a>
+                    </div>
+                    <div class="setting-group">
+                        <label class="setting-label">API 地址（高级）</label>
+                        <input type="text" class="modal-input" id="apiEndpoint" placeholder="https://api.deepseek.com/v1/chat/completions" value="https://api.deepseek.com/v1/chat/completions">
+                    </div>
+                    <div class="setting-group">
+                        <label class="setting-label">默认模型</label>
+                        <div class="setting-select-wrapper">
+                            <select class="setting-select" id="apiModel">
+                                <option value="deepseek-chat" selected>deepseek-chat（通用对话，64K上下文）</option>
+                                <option value="deepseek-reasoner">deepseek-reasoner（深度推理）</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="api-test-section">
+                        <button class="btn-outline" id="apiTestBtn" onclick="testApiConnection()">
+                            <span id="apiTestBtnText">🟢 测试连接</span>
+                        </button>
+                        <span class="api-test-status" id="apiTestStatus"></span>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn-outline" onclick="closeModal('settingsModal')">取消</button>
+                    <button class="btn-primary" onclick="saveAPIConfigHandler()">保存配置</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 右键菜单 -->
+    <div class="context-menu hidden" id="contextMenu">
+        <div class="context-menu-item" onclick="handleContextAction('open')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+            打开
+        </div>
+        <div class="context-menu-item" onclick="handleContextAction('rename')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            重命名
+        </div>
+        <div class="context-menu-item" onclick="handleContextAction('move')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            移动到
+        </div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item context-menu-danger" onclick="handleContextAction('delete')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            删除
+        </div>
+    </div>
+
+    <!-- 选中文字悬浮窗 -->
+    <div class="floating-window hidden" id="floatingWindow">
+        <div class="fw-drag-handle" id="fwDragHandle"></div>
+        <img class="fw-logo" id="fwLogo" src="logo.png" alt="AI Reader" draggable="false">
+        <div class="floating-window-buttons">
+            <button class="fw-btn fw-btn-quote" id="fwQuoteBtn" title="引用到对话">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <span>引用</span>
+            </button>
+            <button class="fw-btn fw-btn-explain" id="fwExplainBtn" title="AI解释">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+                <span>解释</span>
+            </button>
+            <button class="fw-btn fw-btn-translate" id="fwTranslateBtn" title="AI翻译">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 8l6 6"/><path d="M4 14l6-6 2-3"/><path d="M2 5h12"/><path d="M7 2h1"/><path d="m22 22-5-10-5 10"/><path d="M14 18h6"/></svg>
+                <span>翻译</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- 悬浮窗展开面板 - 解释 -->
+    <div class="fw-expand-panel hidden" id="fwExplainPanel">
+        <div class="fw-expand-header">
+            <span class="fw-expand-title">💡 AI解释</span>
+            <button class="fw-expand-close" id="fwExplainClose">&times;</button>
+        </div>
+        <div class="fw-expand-body" id="fwExplainBody">
+            <div class="fw-loading">
+                <div class="fw-loading-dot"></div>
+                <div class="fw-loading-dot"></div>
+                <div class="fw-loading-dot"></div>
+                <span>AI 思考中...</span>
+            </div>
+        </div>
+        <div class="fw-expand-footer">
+            <button class="fw-ref-link-btn" id="fwExplainRefBtn">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                引用此解释到对话
+            </button>
+        </div>
+    </div>
+
+    <!-- 悬浮窗展开面板 - 翻译 -->
+    <div class="fw-expand-panel hidden" id="fwTranslatePanel">
+        <div class="fw-expand-header">
+            <span class="fw-expand-title">🔍 AI翻译</span>
+            <button class="fw-expand-close" id="fwTranslateClose">&times;</button>
+        </div>
+        <div class="fw-expand-body" id="fwTranslateBody">
+            <div class="fw-loading">
+                <div class="fw-loading-dot"></div>
+                <div class="fw-loading-dot"></div>
+                <div class="fw-loading-dot"></div>
+                <span>AI 思考中...</span>
+            </div>
+        </div>
+        <div class="fw-expand-footer">
+            <button class="fw-ref-link-btn" id="fwTranslateRefBtn">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                引用此翻译到对话
+            </button>
+        </div>
+    </div>
+
+    <!-- 选中文字右键菜单 -->
+    <div class="context-menu hidden" id="selectionMenu">
+        <div class="context-menu-item" onclick="handleSelectionAction('copy')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            复制
+        </div>
+        <div class="context-menu-item" onclick="handleSelectionAction('ask')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            AI提问
+        </div>
+        <div class="context-menu-item" onclick="handleSelectionAction('annotate')">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+            标注
+        </div>
+    </div>
+
+    <!-- 提示消息 -->
+    <div class="toast hidden" id="toast">
+        <span class="toast-icon" id="toastIcon">✓</span>
+        <span class="toast-message" id="toastMessage">操作成功</span>
+    </div>
+
+    <script src="ai-service.js"></script>
+    <script src="app.js"></script>
+</body>
+</html>
