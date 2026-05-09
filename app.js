@@ -156,15 +156,17 @@ function cacheDOM() {
 }
 
 // ==================== 初始化 ====================
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     cacheDOM();
-    initLibrary();
     initEventListeners();
     initReaderEvents();
     initKeyboardShortcuts();
     initPdfViewer();
-    // 初始化AI配置切换器
     renderActiveAiSelect();
+
+    await loadPersistedState();
+
+    initLibrary();
 });
 
 function initPdfViewer() {
@@ -276,6 +278,68 @@ function getPdfPageInfo() {
     } catch (e) {
         return { page: null, chapter: null };
     }
+}
+
+// ==================== 持久化存储 ====================
+let _autoSaveTimer = null;
+
+function scheduleAutoSave() {
+    if (_autoSaveTimer) clearTimeout(_autoSaveTimer);
+    _autoSaveTimer = setTimeout(() => {
+        persistAppState();
+    }, 2000);
+}
+
+function persistAppState() {
+    if (typeof TomatoStorage !== 'undefined') {
+        TomatoStorage.saveAll(AppState).catch(err => {
+            console.error('Auto-save failed:', err);
+        });
+    }
+}
+
+async function loadPersistedState() {
+    if (typeof TomatoStorage === 'undefined') return;
+
+    try {
+        const data = await TomatoStorage.loadAll();
+
+        AppState.documents = data.documents || [];
+        AppState.shelves = data.shelves || [
+            { id: 'all', name: '全部文档', system: true },
+            { id: 'recent', name: '最近阅读', system: true }
+        ];
+        AppState.chats = data.chats || {};
+        AppState.readingPositions = data.readingPositions || {};
+        AppState.docContents = data.docContents || {};
+
+        if (data.settings) {
+            AppState.theme = data.settings.theme || 'light';
+            AppState.highlightColor = data.settings.highlightColor || '#fef3c7';
+            AppState.answerLength = data.settings.answerLength || 'medium';
+            AppState.viewMode = data.settings.viewMode || 'grid';
+            AppState.zoom = data.settings.zoom || 100;
+            AppState.pageMode = data.settings.pageMode || 'single';
+            AppState.aiPanelCollapsed = data.settings.aiPanelCollapsed || false;
+        }
+
+        AppState.tokenUsage = data.tokenUsage || { prompt: 0, completion: 0, total: 0 };
+
+        AppState.openDocs = data.openDocs || [];
+        AppState.activeDocId = data.activeDocId || null;
+
+        applyLoadedSettings();
+    } catch (err) {
+        console.error('Failed to load persisted state:', err);
+    }
+}
+
+function applyLoadedSettings() {
+    if (AppState.theme === 'dark') {
+        document.documentElement.setAttribute('data-theme', 'dark');
+    }
+    document.documentElement.style.setProperty('--highlight-color', AppState.highlightColor);
+    DOM.zoomDisplay.textContent = `${AppState.zoom}%`;
 }
 
 // ==================== 书架/文档管理 ====================
@@ -416,7 +480,25 @@ function initEventListeners() {
     });
 
     // 导入按钮
-    DOM.btnImport.addEventListener('click', () => openModal('importModal'));
+    DOM.btnImport.addEventListener('click', async () => {
+        if (window.ElectronAPI) {
+            try {
+                const filePaths = await window.ElectronAPI.openFileDialog();
+                if (filePaths && filePaths.length > 0) {
+                    const files = filePaths.map(path => ({
+                        name: path.split(/[\\/]/).pop(),
+                        path: path
+                    }));
+                    handleElectronFileImport(files);
+                }
+            } catch (err) {
+                console.error('File dialog error:', err);
+                openModal('importModal');
+            }
+        } else {
+            openModal('importModal');
+        }
+    });
 
     // 新建文件夹/书架
     DOM.btnNewFolder.addEventListener('click', () => openModal('newShelfModal'));
@@ -909,6 +991,8 @@ function closeDocTab(docId) {
         URL.revokeObjectURL(AppState.pdfBlobUrls[docId]);
         delete AppState.pdfBlobUrls[docId];
     }
+
+    scheduleAutoSave();
 
     if (AppState.openDocs.length === 0) {
         AppState.activeDocId = null;
@@ -1544,6 +1628,7 @@ function setTheme(theme) {
     document.querySelectorAll('.setting-option[data-theme]').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.theme === theme);
     });
+    scheduleAutoSave();
 }
 
 function setHighlightColor(color) {
@@ -1552,6 +1637,7 @@ function setHighlightColor(color) {
     document.querySelectorAll('.color-option').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.color === color);
     });
+    scheduleAutoSave();
 }
 
 function setAnswerLength(length) {
@@ -1559,6 +1645,7 @@ function setAnswerLength(length) {
     document.querySelectorAll('.length-option').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.length === length);
     });
+    scheduleAutoSave();
 }
 
 // ==================== AI对话 ====================
@@ -1950,6 +2037,8 @@ async function sendMessage() {
     // 发送消息后清空引用列表
     AppState.quoteList = [];
 
+    scheduleAutoSave();
+
     DOM.aiInput.value = '';
     renderChatMessages();
     renderQuoteList();
@@ -2012,6 +2101,7 @@ async function sendMessage() {
         AppState.currentChat.messages.push(errorMsg);
     }
 
+    scheduleAutoSave();
     renderChatMessages();
 }
 
@@ -2111,6 +2201,7 @@ function newChat() {
     AppState.chats[docId].push(newChat);
     AppState.currentChat = newChat;
     AppState.quoteList = [];
+    scheduleAutoSave();
     renderChatMessages();
     renderQuoteList();
     showToast('新建对话成功', 'success');
@@ -2152,6 +2243,7 @@ function deleteChat(chatId) {
         if (AppState.currentChat?.id === chatId) {
             AppState.currentChat = null;
         }
+        scheduleAutoSave();
         renderChatMessages();
         renderChatList();
         showToast('对话已删除', 'success');
@@ -3269,6 +3361,16 @@ function handleContextAction(action) {
         case 'delete':
             showConfirm('删除文档', `是否删除「${doc.name}」？`, () => {
                 AppState.documents = AppState.documents.filter(d => d.id !== doc.id);
+
+                const contentId = doc.content || doc.contentId || doc.id;
+                delete AppState.docContents[contentId];
+                delete AppState.chats[doc.id];
+                delete AppState.readingPositions[doc.id];
+                if (typeof TomatoStorage !== 'undefined') {
+                    TomatoStorage.deleteDocContent(contentId);
+                }
+
+                scheduleAutoSave();
                 renderDocs();
                 updateDocCount();
                 showToast('文档已删除', 'success');
@@ -3292,6 +3394,7 @@ function moveToShelf(shelfId) {
     const doc = AppState.contextTarget;
     if (!doc) return;
     doc.shelf = shelfId;
+    scheduleAutoSave();
     closeModal('moveModal');
     renderDocs();
     showToast(`已移动到「${AppState.shelves.find(s => s.id === shelfId)?.name}」`, 'success');
@@ -3346,7 +3449,7 @@ function createShelf() {
     const id = 'shelf-' + Date.now();
     AppState.shelves.push({ id, name, system: false });
 
-    // 添加到侧边栏
+    scheduleAutoSave();
     renderShelvesList();
 
     DOM.newShelfName.value = '';
@@ -3358,6 +3461,7 @@ function renameShelf(shelfId, newName) {
     const shelf = AppState.shelves.find(s => s.id === shelfId);
     if (shelf) {
         shelf.name = newName;
+        scheduleAutoSave();
         renderShelvesList();
         showToast('书架重命名成功', 'success');
     }
@@ -3373,7 +3477,8 @@ function deleteShelf(shelfId) {
     
     // 删除书架
     AppState.shelves = AppState.shelves.filter(s => s.id !== shelfId);
-    
+
+    scheduleAutoSave();
     // 如果当前选中的是被删除的书架，切换到"全部文档"
     const activeShelf = document.querySelector('.shelf-item.active')?.dataset.shelf;
     if (activeShelf === shelfId) {
@@ -3387,6 +3492,101 @@ function deleteShelf(shelfId) {
 }
 
 // ==================== 文件导入 ====================
+
+async function handleElectronFileImport(filePaths) {
+    if (!filePaths || filePaths.length === 0) return;
+
+    DOM.importProgress.classList.remove('hidden');
+    DOM.progressFill.style.width = '0%';
+    let processed = 0;
+    const total = filePaths.length;
+    let successCount = 0;
+    let failCount = 0;
+
+    const updateProgress = (current, statusMsg) => {
+        const progress = (current / total) * 100;
+        DOM.progressFill.style.width = `${progress}%`;
+        DOM.progressText.textContent = statusMsg || `导入中：${current}/${total} 个文件`;
+    };
+
+    const processFile = async (index) => {
+        if (index >= filePaths.length) {
+            setTimeout(() => {
+                DOM.importProgress.classList.add('hidden');
+                DOM.progressFill.style.width = '0%';
+                if (failCount === 0) {
+                    showToast(`${successCount} 个文件导入成功`, 'success');
+                } else {
+                    showToast(`${successCount} 个导入成功，${failCount} 个失败`, 'error');
+                }
+                renderDocs();
+                updateDocCount();
+            }, 500);
+            return;
+        }
+
+        const fileInfo = filePaths[index];
+        const ext = fileInfo.name.split('.').pop().toLowerCase();
+        const typeInfo = SUPPORTED_TYPES[ext];
+
+        if (!typeInfo) {
+            failCount++;
+            processed++;
+            updateProgress(processed, `不支持的格式：${fileInfo.name}`);
+            processFile(index + 1);
+            return;
+        }
+
+        updateProgress(processed, `正在导入：${fileInfo.name}`);
+
+        try {
+            const response = await fetch('file://' + fileInfo.path);
+            if (!response.ok) {
+                throw new Error('无法读取文件');
+            }
+            const blob = await response.blob();
+            const file = new File([blob], fileInfo.name, { type: blob.type });
+            
+            const content = await parseDocument(file, ext);
+            const docId = 'doc-' + Date.now() + '-' + index;
+            
+            const currentShelf = document.querySelector('.shelf-item.active')?.dataset.shelf || 'all';
+            const targetShelf = (currentShelf === 'all' || currentShelf === 'recent') ? 'all' : currentShelf;
+            
+            const newDoc = {
+                id: docId,
+                name: file.name,
+                type: ext,
+                shelf: targetShelf,
+                date: new Date().toISOString().split('T')[0],
+                size: formatFileSize(file.size),
+                pages: content.pages?.length || 1,
+                pageCount: content.pages?.length || 1,
+                content: docId,
+                contentId: docId,
+                lastRead: null,
+                author: content.author || '',
+                title: content.title || file.name.replace(/\.[^/.]+$/, ''),
+                toc: content.toc || []
+            };
+
+            newDoc.content = newDoc.id;
+            AppState.docContents[newDoc.id] = content;
+            AppState.documents.unshift(newDoc);
+            scheduleAutoSave();
+            successCount++;
+        } catch (err) {
+            console.error(`导入失败: ${fileInfo.name}`, err);
+            failCount++;
+        }
+
+        processed++;
+        updateProgress(processed);
+        processFile(index + 1);
+    };
+
+    processFile(0);
+}
 const SUPPORTED_TYPES = {
     pdf: { parser: 'pdf', label: 'PDF文档' },
     docx: { parser: 'docx', label: 'Word文档' },
@@ -3473,6 +3673,7 @@ function handleFileImport(e) {
             newDoc.content = newDoc.id;
             AppState.docContents[newDoc.id] = content;
             AppState.documents.unshift(newDoc);
+            scheduleAutoSave();
             successCount++;
         } catch (err) {
             console.error(`导入失败: ${file.name}`, err);

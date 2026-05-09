@@ -1,4 +1,4 @@
-﻿<!doctype html>
+<!doctype html>
 <!--
 Copyright 2012 Mozilla Foundation
 
@@ -29,6 +29,10 @@ See https://github.com/adobe-type-tools/cmap-resources
 
 <!-- This snippet is used in production (included from viewer.html) -->
 <link rel="resource" type="application/l10n" href="locale/locale.json" />
+<script>
+if(!Map.prototype.getOrInsertComputed){Map.prototype.getOrInsertComputed=function(key,computeFn){if(this.has(key))return this.get(key);var value=computeFn(key);this.set(key,value);return value}}
+if(!Uint8Array.prototype.toHex){Uint8Array.prototype.toHex=function(){return Array.from(this,function(b){return b.toString(16).padStart(2,'0')}).join('')}}
+</script>
 <script src="../build/pdf.mjs" type="module"></script>
 
     <link rel="stylesheet" href="viewer.css" />
