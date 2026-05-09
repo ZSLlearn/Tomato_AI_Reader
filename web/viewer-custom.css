@@ -1,0 +1,239 @@
+:root {
+    --main-color: #1a73e8;
+    --main-color-hover: #1557b0;
+    --bg-color: #f5f7fa;
+    --toolbar-bg: #ffffff;
+    --text-color: #202124;
+    --text-secondary: #5f6368;
+    --border-color: #e8e8e8;
+    --shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+
+@media (prefers-color-scheme: dark) {
+    :root {
+        --bg-color: #1e1e2e;
+        --toolbar-bg: #252536;
+        --text-color: #e0e0e0;
+        --text-secondary: #b0b0b0;
+        --border-color: #333345;
+        --shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+}
+
+body {
+    background: var(--bg-color) !important;
+}
+
+#outerContainer {
+    background: var(--bg-color) !important;
+}
+
+.toolbar {
+    background: var(--toolbar-bg) !important;
+    border-bottom: 1px solid var(--border-color) !important;
+    box-shadow: var(--shadow) !important;
+}
+
+.toolbarButton,
+.secondaryToolbarButton {
+    color: var(--text-secondary) !important;
+}
+
+.toolbarButton:hover,
+.secondaryToolbarButton:hover {
+    background: rgba(26, 115, 232, 0.1) !important;
+    color: var(--main-color) !important;
+}
+
+.toolbarButton.toggled,
+.toolbarButton.active {
+    background: rgba(26, 115, 232, 0.15) !important;
+    color: var(--main-color) !important;
+}
+
+#viewerContainer {
+    background: var(--bg-color) !important;
+}
+
+#viewer {
+    background: var(--bg-color) !important;
+}
+
+.page {
+    border: none !important;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.1) !important;
+    margin: 16px auto !important;
+}
+
+.textLayer {
+    opacity: 1 !important;
+}
+
+.textLayer span {
+    color: transparent !important;
+}
+
+.textLayer ::selection {
+    background: rgba(26, 115, 232, 0.3) !important;
+}
+
+#sidebarContainer {
+    background: var(--toolbar-bg) !important;
+    border-right: 1px solid var(--border-color) !important;
+}
+
+#sidebarContent {
+    background: var(--toolbar-bg) !important;
+}
+
+.treeItem a {
+    color: var(--text-secondary) !important;
+}
+
+.treeItem a:hover {
+    background: rgba(26, 115, 232, 0.1) !important;
+    color: var(--main-color) !important;
+}
+
+.treeItem.selected > a {
+    background: rgba(26, 115, 232, 0.15) !important;
+    color: var(--main-color) !important;
+}
+
+.thumbnail {
+    border: 2px solid transparent !important;
+}
+
+.thumbnail.selected {
+    border-color: var(--main-color) !important;
+}
+
+#findBar {
+    background: var(--toolbar-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--shadow) !important;
+}
+
+#findInput {
+    background: var(--bg-color) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-color) !important;
+    border-radius: 4px !important;
+}
+
+#secondaryToolbar {
+    background: var(--toolbar-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--shadow) !important;
+}
+
+.secondaryToolbarButton {
+    color: var(--text-secondary) !important;
+}
+
+.secondaryToolbarButton:hover {
+    background: rgba(26, 115, 232, 0.1) !important;
+    color: var(--main-color) !important;
+}
+
+.dropdownToolbarButton {
+    background: var(--bg-color) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 4px !important;
+}
+
+.dropdownToolbarButton select {
+    color: var(--text-color) !important;
+}
+
+#scaleSelect {
+    background: var(--bg-color) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-color) !important;
+    border-radius: 4px !important;
+}
+
+#numPages,
+#pageNumber {
+    color: var(--text-secondary) !important;
+}
+
+#pageNumber {
+    background: var(--bg-color) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 4px !important;
+}
+
+.loadingIcon {
+    background: var(--main-color) !important;
+}
+
+#loadingBar {
+    background: var(--border-color) !important;
+}
+
+#loadingBar .progress {
+    background: var(--main-color) !important;
+}
+
+.errorWrapper {
+    background: #ea4335 !important;
+}
+
+.dialogButton {
+    background: var(--main-color) !important;
+    color: white !important;
+    border-radius: 4px !important;
+}
+
+.dialogButton:hover {
+    background: var(--main-color-hover) !important;
+}
+
+#passwordDialog {
+    background: var(--toolbar-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    border-radius: 8px !important;
+    box-shadow: var(--shadow) !important;
+}
+
+#passwordInput {
+    background: var(--bg-color) !important;
+    border: 1px solid var(--border-color) !important;
+    color: var(--text-color) !important;
+    border-radius: 4px !important;
+}
+
+.annotationLayer .linkAnnotation > a {
+    background: transparent !important;
+}
+
+.annotationLayer .linkAnnotation > a:hover {
+    background: rgba(26, 115, 232, 0.1) !important;
+}
+
+.annotationLayer .popup {
+    background: var(--toolbar-bg) !important;
+    border: 1px solid var(--border-color) !important;
+    box-shadow: var(--shadow) !important;
+}
+
+.annotationLayer .popup h1 {
+    color: var(--text-color) !important;
+}
+
+.annotationLayer .popup p {
+    color: var(--text-secondary) !important;
+}
+
+#printContainer {
+    display: none !important;
+}
+
+@media print {
+    #printContainer {
+        display: block !important;
+    }
+}
