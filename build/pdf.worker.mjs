@@ -24,6 +24,10 @@
  * pdfjsVersion = 5.7.284
  * pdfjsBuild = 7e5b36c2d
  */
+
+if (!Uint8Array.prototype.toHex) { Uint8Array.prototype.toHex = function() { return Array.from(this, function(b) { return b.toString(16).padStart(2, '0'); }).join(''); }; }
+if (!Map.prototype.getOrInsertComputed) { Map.prototype.getOrInsertComputed = function(key, computeFn) { if (this.has(key)) return this.get(key); var value = computeFn(key); this.set(key, value); return value; }; }
+
 /******/ // The require scope
 /******/ var __webpack_require__ = {};
 /******/ 

@@ -2974,7 +2974,12 @@ a {
     display: none;
 }
 
+.floating-window.dragging {
+    animation: none;
+}
+
 .fw-drag-handle {
+    touch-action: none;
     position: absolute;
     left: 0;
     top: 0;
@@ -3028,6 +3033,7 @@ a {
     cursor: grab;
     user-select: none;
     -webkit-user-drag: none;
+    touch-action: none;
     transition: opacity 0.15s;
 }
 

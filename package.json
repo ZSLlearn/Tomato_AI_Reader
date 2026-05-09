@@ -1,16 +1,74 @@
 {
-  "name": "aireader",
+  "name": "tomato-reader",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "AI智能阅读器 - Tomato Reader",
+  "main": "main.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "start": "node server.js",
+    "electron": "electron .",
+    "build:win": "electron-builder --win portable --config.extraMetadata.main=main.js",
+    "build:win:installer": "electron-builder --win nsis --config.extraMetadata.main=main.js"
   },
-  "keywords": [],
+  "build": {
+    "appId": "com.tomatoreader.app",
+    "productName": "Tomato Reader",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "files": [
+      "**/*",
+      "!node_modules/**/*",
+      "!PRD.md",
+      "!web/compressed.tracemonkey-pldi-09.pdf",
+      "!dist/**/*",
+      "!dist-electron/**/*",
+      "!out/**/*",
+      "!release/**/*",
+      "!server.js",
+      "!package-lock.json",
+      "!logo_256x256.ico",
+      "!logo.png",
+      "!.gitignore",
+      "!.git/**/*",
+      "node_modules/lucide-static/**/*",
+      "build/**/*"
+    ],
+    "extraResources": [],
+    "icon": "logo_32x32.ico",
+    "win": {
+      "icon": "logo_32x32.ico",
+      "target": [
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "portable": {
+      "artifactName": "TomatoReader-${version}-portable.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "TomatoReader-${version}-setup.${ext}"
+    }
+  },
+  "keywords": [
+    "reader",
+    "ai",
+    "pdf",
+    "ebook"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
     "lucide-static": "^1.14.0"
+  },
+  "devDependencies": {
+    "electron": "^34.5.8",
+    "electron-builder": "^25.1.8"
   }
 }

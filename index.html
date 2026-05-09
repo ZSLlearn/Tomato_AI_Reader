@@ -5,13 +5,75 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI智能阅读器</title>
     <link rel="stylesheet" href="style.css">
-    <script type="module">
-        import * as pdfjsLib from './build/pdf.mjs';
-        window.pdfjsLib = pdfjsLib;
-        pdfjsLib.GlobalWorkerOptions.workerSrc = './build/pdf.worker.mjs';
+    <script>
+        if (!Uint8Array.prototype.toHex) {
+            Uint8Array.prototype.toHex = function() {
+                return Array.from(this, function(b) { return b.toString(16).padStart(2, '0'); }).join('');
+            };
+        }
+        if (!Map.prototype.getOrInsertComputed) {
+            Map.prototype.getOrInsertComputed = function(key, computeFn) {
+                if (this.has(key)) return this.get(key);
+                var value = computeFn(key);
+                this.set(key, value);
+                return value;
+            };
+        }
     </script>
-    <script src="build/mammoth.browser.min.js"></script>
-    <script src="build/jszip.min.js"></script>
+    <script>
+        function getResourceUrl(resourcePath) {
+            if (window.ElectronAPI && window.ElectronAPI.isPackaged) {
+                return window.ElectronAPI.getResourcePath(resourcePath);
+            }
+            return './' + resourcePath;
+        }
+        
+        function loadScripts() {
+            const scripts = [
+                'build/mammoth.browser.min.js',
+                'build/jszip.min.js',
+                'storage.js'
+            ];
+            
+            let loadedCount = 0;
+            scripts.forEach((scriptPath) => {
+                const el = document.createElement('script');
+                el.src = getResourceUrl(scriptPath);
+                el.onload = () => {
+                    loadedCount++;
+                    if (loadedCount === scripts.length) {
+                        loadPDFJS();
+                    }
+                };
+                el.onerror = () => {
+                    console.error('Failed to load script:', el.src);
+                    loadedCount++;
+                    if (loadedCount === scripts.length) {
+                        loadPDFJS();
+                    }
+                };
+                document.head.appendChild(el);
+            });
+        }
+        
+        function loadPDFJS() {
+            const script = document.createElement('script');
+            script.type = 'module';
+            script.src = getResourceUrl('build/pdf.mjs');
+            script.onload = () => {
+                if (window.pdfjsLib) {
+                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = getResourceUrl('build/pdf.worker.mjs');
+                    console.log('PDF.js loaded successfully');
+                }
+            };
+            script.onerror = () => {
+                console.error('Failed to load PDF.js');
+            };
+            document.head.appendChild(script);
+        }
+        
+        document.addEventListener('DOMContentLoaded', loadScripts);
+    </script>
 </head>
 <body>
     <!-- ==================== 页面1：文档管理/书架首页 ==================== -->
